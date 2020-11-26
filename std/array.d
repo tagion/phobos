@@ -1158,7 +1158,7 @@ if (is(typeof(a.ptr < b.ptr) == bool))
     test(a, b);
     assert(overlap(a, b.dup).empty);
     test(c, d);
-    assert(overlap(c, d.idup).empty);
+    assert(overlap(c, d.dup.idup).empty);
 }
 
  // https://issues.dlang.org/show_bug.cgi?id=9836
@@ -2020,7 +2020,7 @@ if (isInputRange!RoR &&
         ror.popFront();
         for (; !ror.empty; ror.popFront())
         {
-            put(result, sep);
+            put(result, sepArr);
             put(result, ror.front);
         }
         return result.data;
@@ -2032,6 +2032,29 @@ if (isInputRange!RoR &&
 {
    string[] ary = ["","aa","bb","cc"]; // leaded by _empty_ element
    assert(ary.join(" @") == " @aa @bb @cc"); // OK in 2.067b1 and olders
+}
+
+// https://issues.dlang.org/show_bug.cgi?id=21337
+@system unittest
+{
+    import std.algorithm.iteration : map;
+
+    static class Once
+    {
+        bool empty;
+
+        void popFront()
+        {
+            empty = true;
+        }
+
+        int front()
+        {
+            return 0;
+        }
+    }
+
+    assert([1, 2].map!"[a]".join(new Once) == [1, 0, 2]);
 }
 
 /// Ditto
@@ -3596,17 +3619,18 @@ if (isDynamicArray!A)
 
         auto app = appender!string();
         auto spec = singleSpec("%s");
+        immutable len = _data ? _data.arr.length : 0;
         // different reserve lengths because each element in a
         // non-string-like array uses two extra characters for `, `.
         static if (isSomeString!A)
         {
-            app.reserve(_data.arr.length + 25);
+            app.reserve(len + 25);
         }
         else
         {
             // Multiplying by three is a very conservative estimate of
             // length, as it assumes each element is only one char
-            app.reserve((_data.arr.length * 3) + 25);
+            app.reserve((len * 3) + 25);
         }
         toString(app, spec);
         return app.data;
@@ -3748,6 +3772,16 @@ if (isDynamicArray!A)
     auto wstr = appender!wstring();
     put(wstr, str.byCodeUnit);
     assert(wstr.data == str.to!wstring);
+}
+
+// https://issues.dlang.org/show_bug.cgi?id=21256
+@safe unittest
+{
+    Appender!string app1;
+    app1.toString();
+
+    Appender!(int[]) app2;
+    app2.toString();
 }
 
 //Calculates an efficient growth scheme based on the old capacity
