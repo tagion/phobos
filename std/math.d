@@ -143,7 +143,6 @@ version (LDC)
 {
     import ldc.attributes;
     import ldc.intrinsics;
-    import ldc.llvmasm;
 
     version (CRuntime_Microsoft) version = LDC_MSVCRT;
 
@@ -5351,13 +5350,13 @@ private:
     {
         version (InlineAsm_X86_Any)
         {
+            ushort sw;
           version (LDC)
           {
-            const sw = __asm!ushort("fstsw %ax", "={ax}");
+            asm pure nothrow @nogc { "fstsw %0" : "=m" (sw); }
           }
           else
           {
-            ushort sw;
             asm pure nothrow @nogc { fstsw sw; }
           }
 
@@ -5367,7 +5366,7 @@ private:
                 uint mxcsr;
               version (LDC)
               {
-                __asm("stmxcsr $0", "=*m", &mxcsr);
+                asm pure nothrow @nogc { "stmxcsr %0" : "=m" (mxcsr); }
               }
               else
               {
@@ -5381,24 +5380,22 @@ private:
         {
             version (PPC_Any)
             {
-                double fspr = __asm!double("mffs $0", "=f");
-                return cast(uint) *cast(ulong*) &fspr;
+                return FloatingPointControl.getControlState();
             }
             else version (MIPS_Any)
             {
-                return __asm!uint(`.set noat
-                                   cfc1 $0, $$31
-                                   .set at`, "=r");
+                return FloatingPointControl.getControlState();
             }
             else version (AArch64)
             {
-                return __asm!uint(`mrs $0, FPSR
-                                   and $0, $0, #0x1F`, "=r");
+                uint fpsr;
+                asm pure nothrow @nogc { "mrs %0, FPSR" : "=r" (fpsr); }
+                return fpsr & 0x1F;
             }
             else version (ARM)
             {
-                return __asm!uint(`vmrs $0, FPSCR
-                                   and $0, $0, #0x1F`, "=r");
+                const fpscr = FloatingPointControl.getControlState();
+                return fpscr & 0x1F;
             }
             else
                 assert(0, "Not yet supported");
@@ -5437,7 +5434,7 @@ private:
         {
           version (LDC)
           {
-            __asm("fnclex", "~{fpsw}");
+            asm nothrow @nogc { "fnclex" : : : "fpsw"; }
           }
           else
           {
@@ -5453,9 +5450,9 @@ private:
                 uint mxcsr;
               version (LDC)
               {
-                __asm("stmxcsr $0", "=*m", &mxcsr);
+                asm nothrow @nogc { "stmxcsr %0" : "=m" (mxcsr); }
                 mxcsr &= ~EXCEPTIONS_MASK;
-                __asm("ldmxcsr $0", "*m,~{flags}", &mxcsr);
+                asm nothrow @nogc { "ldmxcsr %0" : : "m" (mxcsr) : "flags"; }
               }
               else
               {
@@ -5479,41 +5476,39 @@ private:
         {
             version (PPC_Any)
             {
-                __asm(`mtfsb0 3
-                       mtfsb0 4
-                       mtfsb0 5
-                       mtfsb0 6
-                       mtfsb0 7
-                       mtfsb0 8
-                       mtfsb0 9
-                       mtfsb0 10
-                       mtfsb0 11
-                       mtfsb0 12`, "");
+                asm pure nothrow @nogc
+                {
+                    `mtfsb0 3
+                     mtfsb0 4
+                     mtfsb0 5
+                     mtfsb0 6
+                     mtfsb0 7
+                     mtfsb0 8
+                     mtfsb0 9
+                     mtfsb0 10
+                     mtfsb0 11
+                     mtfsb0 12`;
+                }
             }
             else version (MIPS_Any)
             {
-                version (D_LP64)    enum mask = "0xFFFFFF80";
-                else                enum mask = "0xFF80";
+                version (D_LP64) enum mask = 0xFFFFFF80u;
+                else             enum mask = 0xFF80u;
 
-                cast(void) __asm!uint(`.set noat
-                                       cfc1 $0, $$31
-                                       andi $0, $0, `~ mask ~`
-                                       ctc1 $0, $$31
-                                       .set at`, "=r");
+                const newState = FloatingPointControl.getControlState() & mask;
+                FloatingPointControl.setControlState(newState);
             }
             else version (AArch64)
             {
-                // http://infocenter.arm.com/help/topic/com.arm.doc.ddi0502f/CIHHDCHB.html
-                cast(void) __asm!uint(`mrs $0, fpsr
-                                       and $0, $0, #~0x1f
-                                       msr fpsr, $0`, "=r");
+                uint fpsr;
+                asm pure nothrow @nogc { "mrs %0, FPSR" : "=r" (fpsr); }
+                fpsr &= ~0x1F;
+                asm pure nothrow @nogc { "msr FPSR, %0" : : "r" (fpsr); }
             }
             else version (ARM)
             {
-                // http://infocenter.arm.com/help/topic/com.arm.doc.ddi0408i/Chdfifdc.html
-                cast(void) __asm!uint(`vmrs $0, fpscr
-                                       bic $0, #0x1f
-                                       vmsr fpscr, $0`, "=r");
+                const fpscr = FloatingPointControl.getControlState();
+                FloatingPointControl.setControlState(fpscr & ~0x1F);
             }
             else
                 assert(0, "Not yet supported");
@@ -5970,21 +5965,9 @@ nothrow @nogc:
             auto oldState = getControlState();
             // If exceptions are not supported, we set the bit but read it back as zero
             // https://sourceware.org/ml/libc-ports/2012-06/msg00091.html
-            version (LDC)
-            {
-                version (AArch64) __asm_trusted("msr FPCR, $0", "r", oldState | divByZeroException);
-                else              __asm_trusted("vmsr FPSCR, $0", "r", oldState | divByZeroException);
-            }
-            else
-                setControlState(oldState | divByZeroException);
+            setControlState(oldState | divByZeroException);
             immutable result = (getControlState() & allExceptions) != 0;
-            version (LDC)
-            {
-                version (AArch64) __asm_trusted("msr FPCR, $0", "r", oldState);
-                else              __asm_trusted("vmsr FPSCR, $0", "r", oldState);
-            }
-            else
-                setControlState(oldState);
+            setControlState(oldState);
             return result;
         }
     }
@@ -6110,22 +6093,22 @@ private:
             }
             else version (PPC_Any)
             {
-                __asm_trusted(`mtfsb0 24
-                               mtfsb0 25
-                               mtfsb0 26
-                               mtfsb0 27
-                               mtfsb0 28`, "");
+                asm pure nothrow @nogc @safe
+                {
+                    `mtfsb0 24
+                     mtfsb0 25
+                     mtfsb0 26
+                     mtfsb0 27
+                     mtfsb0 28`;
+                }
             }
             else version (MIPS_Any)
             {
-                version (D_LP64)    enum mask = "0xFFFFF07F";
-                else                enum mask = "0xF07F";
+                version (D_LP64) enum mask = 0xFFFFF07Fu;
+                else             enum mask = 0xF07Fu;
 
-                cast(void) __asm_trusted!uint(`.set noat
-                                               cfc1 $0, $$31
-                                               andi $0, $0, `~ mask ~`
-                                               ctc1 $0, $$31
-                                               .set at`, "=r");
+                const cs = getControlState();
+                setControlState(cs & mask);
             }
             else version (ARM_Any)
             {
@@ -6149,32 +6132,49 @@ private:
 
             version (X86)
             {
-                __asm(`xor %eax, %eax
-                       fstcw $0`, "=*m,~{eax}", &cont);
+                asm pure nothrow @nogc
+                {
+                    `xor %%eax, %%eax
+                     fstcw %0`
+                    : "=m" (cont)
+                    :
+                    : "eax";
+                }
             }
             else version (X86_64)
             {
-                __asm(`xor %rax, %rax
-                       fstcw $0`, "=*m,~{rax}", &cont);
+                asm pure nothrow @nogc
+                {
+                    `xor %%rax, %%rax
+                     fstcw %0`
+                    : "=m" (cont)
+                    :
+                    : "rax";
+                }
             }
             else version (PPC_Any)
             {
-                double fspr = __asm!double("mffs $0", "={f0}");
+                double fspr;
+                asm pure nothrow @nogc { "mffs %0" : "=f" (fspr); }
                 cont = cast(ControlState) *cast(ulong*) &fspr;
             }
             else version (MIPS_Any)
             {
-                cont = __asm!uint(`.set noat
-                                   cfc1 $0, $$31
-                                   .set at`, "=r");
+                asm pure nothrow @nogc
+                {
+                    `.set noat
+                     cfc1 %0, $31
+                     .set at`
+                    : "=r" (cont);
+                }
             }
             else version (AArch64)
             {
-                cont = __asm!ControlState("mrs $0, FPCR", "=r");
+                asm pure nothrow @nogc { "mrs %0, FPCR" : "=r" (cont); }
             }
             else version (ARM)
             {
-                cont = __asm!ControlState("vmrs $0, FPSCR", "=r");
+                asm pure nothrow @nogc { "vmrs %0, FPSCR" : "=r" (cont); }
             }
             else
                 assert(0, "Not yet supported");
@@ -6224,8 +6224,14 @@ private:
         {
           version (LDC)
           {
-            __asm("fclex\n" ~
-                  "fldcw $0", "*m,~{fpsw}", &newState);
+            asm nothrow @nogc
+            {
+                `fclex
+                 fldcw %0`
+                :
+                : "m" (newState)
+                : "fpsw";
+            }
           }
           else
           {
@@ -6242,7 +6248,7 @@ private:
                 uint mxcsr;
               version (LDC)
               {
-                __asm("stmxcsr $0", "=*m", &mxcsr);
+                asm nothrow @nogc { "stmxcsr %0" : "=m" (mxcsr); }
               }
               else
               {
@@ -6261,7 +6267,7 @@ private:
 
               version (LDC)
               {
-                __asm("ldmxcsr $0", "*m,~{flags}", &mxcsr);
+                asm nothrow @nogc { "ldmxcsr %0" : : "m" (mxcsr) : "flags"; }
               }
               else
               {
@@ -6284,21 +6290,26 @@ private:
             {
                 ulong tmpState = newState;
                 double fspr = *cast(double*) &tmpState;
-                __asm("mtfsf 0x0f, $0", "f", fspr);
+                asm nothrow @nogc { "mtfsf 0x0f, %0" : : "f" (fspr); }
             }
             else version (MIPS_Any)
             {
-                __asm(`.set noat
-                       ctc1 $0, $$31
-                       .set at`, "r", newState);
+                asm nothrow @nogc
+                {
+                    `.set noat
+                     ctc1 %0, $31
+                     .set at`
+                    :
+                    : "r" (newState);
+                }
             }
             else version (AArch64)
             {
-                __asm("msr FPCR, $0", "r", newState);
+                asm nothrow @nogc { "msr FPCR, %0" : : "r" (newState); }
             }
             else version (ARM)
             {
-                __asm("vmsr FPSCR, $0", "r", newState);
+                asm nothrow @nogc { "vmsr FPSCR, %0" : : "r" (newState); }
             }
             else
                 assert(0, "Not yet supported");
