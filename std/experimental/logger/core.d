@@ -1649,7 +1649,7 @@ private shared LogLevel stdLoggerGlobalLogLevel = LogLevel.all;
  */
 private @property Logger defaultSharedLoggerImpl() @trusted
 {
-    import std.conv : emplace;
+    import core.lifetime : emplace;
     import std.stdio : stderr;
 
     __gshared align(FileLogger.alignof) void[__traits(classInstanceSize, FileLogger)] _buffer;
@@ -1783,7 +1783,7 @@ private Logger stdLoggerDefaultThreadLogger;
 */
 private @property Logger stdThreadLocalLogImpl() @trusted
 {
-    import std.conv : emplace;
+    import core.lifetime : emplace;
 
     static void*[(__traits(classInstanceSize, StdForwardLogger) - 1) / (void*).sizeof + 1] _buffer;
 

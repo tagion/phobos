@@ -83,6 +83,10 @@ else version (NetBSD)
 {
     version = GENERIC_IO;
 }
+else version (OpenBSD)
+{
+    version = GENERIC_IO;
+}
 else version (DragonFlyBSD)
 {
     version = GENERIC_IO;
@@ -1423,7 +1427,7 @@ Throws: `Exception` if the file is not opened.
                 liLength.HighPart, &overlapped);
         }
 
-        private static T wenforce(T)(T cond, string str)
+        private static T wenforce(T)(T cond, lazy string str)
         {
             import core.sys.windows.winbase : GetLastError;
             import std.windows.syserror : sysErrorString;
@@ -2053,7 +2057,7 @@ is recommended if you want to process a complete file.
     /**
      * Reads formatted _data from the file using $(REF formattedRead, std,_format).
      * Params:
-     * format = The $(REF_ALTTEXT format string, formattedWrite, std _format).
+     * format = The $(REF_ALTTEXT format string, formattedWrite, std, _format).
      * When passed as a compile-time argument, the string will be statically checked
      * against the argument types passed.
      * data = Items to be read.
@@ -3291,8 +3295,10 @@ is empty, throws an `Exception`. In case of an I/O error throws
                 ubyte oldInfo;
         }
 
-    package:
-        this(ref File f)
+    public:
+        // Don't use this, but `File.lockingBinaryWriter()` instead.
+        // Must be public for RefCounted and emplace() in druntime.
+        this(scope ref File f)
         {
             import std.exception : enforce;
             file_ = f;
@@ -3318,7 +3324,6 @@ is empty, throws an `Exception`. In case of an I/O error throws
             }
         }
 
-    public:
         ~this()
         {
             if (!file_._p || !file_._p.handle)

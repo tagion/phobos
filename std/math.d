@@ -121,12 +121,6 @@ $(TR $(TDNW Hardware Control) $(TD
  */
 module std.math;
 
-version (Win64)
-{
-    version (D_InlineAsm_X86_64)
-        version = Win64_DMD_InlineAsm;
-}
-
 static import core.math;
 static import core.stdc.math;
 static import core.stdc.fenv;
@@ -177,30 +171,16 @@ version (SystemZ)   version = IBMZ_Any;
 version (RISCV32)   version = RISCV_Any;
 version (RISCV64)   version = RISCV_Any;
 
-version (D_InlineAsm_X86)
-{
-    version = InlineAsm_X86_Any;
-}
-else version (D_InlineAsm_X86_64)
-{
-    version = InlineAsm_X86_Any;
-}
+version (D_InlineAsm_X86)    version = InlineAsm_X86_Any;
+version (D_InlineAsm_X86_64) version = InlineAsm_X86_Any;
 
-version (CRuntime_Microsoft)
-{
-    version (InlineAsm_X86_Any)
-        version = MSVC_InlineAsm;
-}
-
-// define InlineAsm*_X87 versions if real is defined as 80-bit x87
 version (LDC_MSVCRT)   {}
 else version (Android) {}
-else
+else version (InlineAsm_X86_Any) version = InlineAsm_X87;
+version (InlineAsm_X87)
 {
-    version (D_InlineAsm_X86)     version = InlineAsm_X86_X87;
-    version (D_InlineAsm_X86_64)  version = InlineAsm_X86_64_X87;
-    version (InlineAsm_X86_Any)   version = InlineAsm_X86_Any_X87;
-    version (Win64_DMD_InlineAsm) version = Win64_DMD_InlineAsm_X87;
+    static assert(real.mant_dig == 64);
+    version (CRuntime_Microsoft) version = InlineAsm_X87_MSVC;
 }
 
 version (X86_64) version = StaticallyHaveSSE;
@@ -416,8 +396,8 @@ float cos(float x) @safe pure nothrow @nogc { return core.math.cos(x); }
 @safe unittest
 {
     assert(cos(0.0) == 1.0);
-    assert(cos(1.0).approxEqual(0.540));
-    assert(cos(3.0).approxEqual(-0.989));
+    assert(cos(1.0).isClose(0.5403023059));
+    assert(cos(3.0).isClose(-0.9899924966));
 }
 
 @safe unittest
@@ -484,10 +464,10 @@ float sin(float x) @safe pure nothrow @nogc { return core.math.sin(x); }
  *      $(TR $(TD $(PLUSMNINF))  $(TD $(NAN))       $(TD yes))
  *      )
  */
-pragma(inline, true) // LDC
+pragma(inline, true)
 real tan(real x) @safe pure nothrow @nogc
 {
-    version (InlineAsm_X86_Any_X87)
+    version (InlineAsm_X87)
     {
         if (!__ctfe)
             return tanAsm(x);
@@ -496,26 +476,26 @@ real tan(real x) @safe pure nothrow @nogc
 }
 
 /// ditto
-pragma(inline, true) // LDC
+pragma(inline, true)
 double tan(double x) @safe pure nothrow @nogc { return __ctfe ? cast(double) tan(cast(real) x) : tanImpl(x); }
 
 /// ditto
-pragma(inline, true) // LDC
+pragma(inline, true)
 float tan(float x) @safe pure nothrow @nogc { return __ctfe ? cast(float) tan(cast(real) x) : tanImpl(x); }
 
 ///
 @safe unittest
 {
     assert(isIdentical(tan(0.0), 0.0));
-    assert(tan(PI).approxEqual(0));
-    assert(tan(PI / 3).approxEqual(sqrt(3.0)));
+    assert(tan(PI).isClose(0, 0.0, 1e-10));
+    assert(tan(PI / 3).isClose(sqrt(3.0)));
 }
 
 // LDC: pass `real.nan` as extra param and use extern(C++) for non-reversed params
-version (InlineAsm_X86_Any_X87)
+version (InlineAsm_X87)
 private extern(C++) real tanAsm(real x, real nan = real.nan) @trusted pure nothrow @nogc
 {
-    version (D_InlineAsm_X86)
+    version (X86)
     {
     asm pure nothrow @nogc
     {
@@ -552,7 +532,7 @@ Clear1: fstp    ST(0)                   ; // dump X, which is always 1
 Lret:   ret                             ;
     }
     }
-    else version (D_InlineAsm_X86_64)
+    else version (X86_64)
     {
         version (Win64)
         {
@@ -767,20 +747,20 @@ private T tanImpl(T)(T x) @safe pure nothrow @nogc
         static immutable T[2][] vals =
         [
             // angle, tan
-            [   .5,  .5463024898],
-            [   1,   1.557407725],
-            [   1.5, 14.10141995],
-            [   2,  -2.185039863],
-            [   2.5,-.7470222972],
-            [   3,  -.1425465431],
-            [   3.5, .3745856402],
-            [   4,   1.157821282],
-            [   4.5, 4.637332055],
-            [   5,  -3.380515006],
-            [   5.5,-.9955840522],
-            [   6,  -.2910061914],
-            [   6.5, .2202772003],
-            [   10,  .6483608275],
+            [   .5,  .54630248984],
+            [   1,   1.5574077247],
+            [   1.5, 14.101419947],
+            [   2,  -2.1850398633],
+            [   2.5,-.74702229724],
+            [   3,  -.14254654307],
+            [   3.5, .37458564016],
+            [   4,   1.1578212823],
+            [   4.5, 4.6373320546],
+            [   5,  -3.3805150062],
+            [   5.5,-.99558405221],
+            [   6,  -.29100619138],
+            [   6.5, .22027720035],
+            [   10,  .64836082746],
 
             // special angles
             [   PI_4,   1],
@@ -800,13 +780,13 @@ private T tanImpl(T)(T x) @safe pure nothrow @nogc
             T t = tan(x);
 
             //printf("tan(%Lg) = %Lg, should be %Lg\n", cast(real) x, cast(real) t, cast(real) r);
-            assert(approxEqual(r, t));
+            assert(isClose(r, t, CommonDefaultFor!(T,T), CommonDefaultFor!(T,T)));
 
             x = -x;
             r = -r;
             t = tan(x);
             //printf("tan(%Lg) = %Lg, should be %Lg\n", cast(real) x, cast(real) t, cast(real) r);
-            assert(approxEqual(r, t));
+            assert(isClose(r, t, CommonDefaultFor!(T,T), CommonDefaultFor!(T,T)));
         }
     }
 
@@ -842,8 +822,8 @@ float acos(float x) @safe pure nothrow @nogc  { return acos(cast(real) x); }
 ///
 @safe unittest
 {
-    assert(acos(0.0).approxEqual(1.570));
-    assert(acos(0.5).approxEqual(std.math.PI / 3));
+    assert(acos(0.0).isClose(1.570796327));
+    assert(acos(0.5).isClose(std.math.PI / 3));
     assert(acos(PI).isNaN);
 }
 
@@ -878,7 +858,7 @@ float asin(float x) @safe pure nothrow @nogc  { return asin(cast(real) x); }
 @safe unittest
 {
     assert(isIdentical(asin(0.0), 0.0));
-    assert(asin(0.5).approxEqual(PI / 6));
+    assert(asin(0.5).isClose(PI / 6));
     assert(asin(PI).isNaN);
 }
 
@@ -897,9 +877,10 @@ float asin(float x) @safe pure nothrow @nogc  { return asin(cast(real) x); }
  *      $(TR $(TD $(PLUSMN)$(INFIN)) $(TD $(NAN))       $(TD yes))
  *  )
  */
+pragma(inline, true)
 real atan(real x) @safe pure nothrow @nogc
 {
-    version (InlineAsm_X86_Any_X87)
+    version (InlineAsm_X87)
     {
         if (!__ctfe)
             return atan2Asm(x, 1.0L);
@@ -908,16 +889,18 @@ real atan(real x) @safe pure nothrow @nogc
 }
 
 /// ditto
+pragma(inline, true)
 double atan(double x) @safe pure nothrow @nogc { return __ctfe ? cast(double) atan(cast(real) x) : atanImpl(x); }
 
 /// ditto
+pragma(inline, true)
 float atan(float x) @safe pure nothrow @nogc { return __ctfe ? cast(float) atan(cast(real) x) : atanImpl(x); }
 
 ///
 @safe unittest
 {
     assert(isIdentical(atan(0.0), 0.0));
-    assert(atan(sqrt(3.0)).approxEqual(PI / 3));
+    assert(atan(sqrt(3.0)).isClose(PI / 3));
 }
 
 private T atanImpl(T)(T x) @safe pure nothrow @nogc
@@ -1086,8 +1069,8 @@ private T atanImpl(T)(T x) @safe pure nothrow @nogc
         assert(isIdentical(atan(-zero), -zero));
         // ±∞
         const T inf = T.infinity;
-        assert(approxEqual(atan(inf), cast(T) PI_2));
-        assert(approxEqual(atan(-inf), cast(T) -PI_2));
+        assert(isClose(atan(inf), cast(T) PI_2));
+        assert(isClose(atan(-inf), cast(T) -PI_2));
         // NaN
         const T specialNaN = NaN(0x0123L);
         assert(isIdentical(atan(specialNaN), specialNaN));
@@ -1095,11 +1078,11 @@ private T atanImpl(T)(T x) @safe pure nothrow @nogc
         static immutable T[2][] vals =
         [
             // x, atan(x)
-            [ 0.25, 0.2449786631 ],
-            [ 0.5,  0.4636476090 ],
-            [ 1,    PI_4         ],
-            [ 1.5,  0.9827937232 ],
-            [ 10,   1.4711276743 ],
+            [ 0.25, 0.24497866313 ],
+            [ 0.5,  0.46364760900 ],
+            [ 1,    PI_4          ],
+            [ 1.5,  0.98279372325 ],
+            [ 10,   1.47112767430 ],
         ];
 
         foreach (ref val; vals)
@@ -1109,13 +1092,13 @@ private T atanImpl(T)(T x) @safe pure nothrow @nogc
             T a = atan(x);
 
             //printf("atan(%Lg) = %Lg, should be %Lg\n", cast(real) x, cast(real) a, cast(real) r);
-            assert(approxEqual(r, a));
+            assert(isClose(r, a, CommonDefaultFor!(T,T), CommonDefaultFor!(T,T)));
 
             x = -x;
             r = -r;
             a = atan(x);
             //printf("atan(%Lg) = %Lg, should be %Lg\n", cast(real) x, cast(real) a, cast(real) r);
-            assert(approxEqual(r, a));
+            assert(isClose(r, a, CommonDefaultFor!(T,T), CommonDefaultFor!(T,T)));
         }
     }
 
@@ -1147,9 +1130,10 @@ private T atanImpl(T)(T x) @safe pure nothrow @nogc
  *      $(TR $(TD $(PLUSMN)$(INFIN)) $(TD -$(INFIN))    $(TD $(PLUSMN)3$(PI)/4))
  *      )
  */
+pragma(inline, true)
 real atan2(real y, real x) @trusted pure nothrow @nogc // TODO: @safe
 {
-    version (InlineAsm_X86_Any_X87)
+    version (InlineAsm_X87)
     {
         if (!__ctfe)
             return atan2Asm(y, x);
@@ -1158,12 +1142,14 @@ real atan2(real y, real x) @trusted pure nothrow @nogc // TODO: @safe
 }
 
 /// ditto
+pragma(inline, true)
 double atan2(double y, double x) @safe pure nothrow @nogc
 {
     return __ctfe ? cast(double) atan2(cast(real) y, cast(real) x) : atan2Impl(y, x);
 }
 
 /// ditto
+pragma(inline, true)
 float atan2(float y, float x) @safe pure nothrow @nogc
 {
     return __ctfe ? cast(float) atan2(cast(real) y, cast(real) x) : atan2Impl(y, x);
@@ -1172,10 +1158,10 @@ float atan2(float y, float x) @safe pure nothrow @nogc
 ///
 @safe unittest
 {
-    assert(atan2(1.0, sqrt(3.0)).approxEqual(PI / 6));
+    assert(atan2(1.0, sqrt(3.0)).isClose(PI / 6));
 }
 
-version (InlineAsm_X86_Any_X87)
+version (InlineAsm_X87)
 private real atan2Asm(real y, real x) @trusted pure nothrow @nogc
 {
     version (Win64)
@@ -1313,7 +1299,7 @@ private T atan2Impl(T)(T y, T x) @safe pure nothrow @nogc
             if (r == 0)
                 assert(isIdentical(r, a)); // check sign
             else
-                assert(approxEqual(r, a));
+                assert(isClose(r, a));
         }
     }
 
@@ -1350,7 +1336,7 @@ float cosh(float x) @safe pure nothrow @nogc  { return cosh(cast(real) x); }
 @safe unittest
 {
     assert(cosh(0.0) == 1.0);
-    assert(cosh(1.0).approxEqual((E + 1.0 / E) / 2));
+    assert(cosh(1.0).isClose((E + 1.0 / E) / 2));
 }
 
 @safe @nogc nothrow unittest
@@ -1383,7 +1369,7 @@ float sinh(float x) @safe pure nothrow @nogc { return _sinh(x); }
     static foreach (F; AliasSeq!(float, double, real))
     {
         assert(isIdentical(sinh(F(0.0)), F(0.0)));
-        assert(sinh(F(1.0)).approxEqual(F(sinh1)));
+        assert(sinh(F(1.0)).isClose(F(sinh1)));
     }
 }
 
@@ -1427,7 +1413,7 @@ float tanh(float x) @safe pure nothrow @nogc { return _tanh(x); }
 @safe unittest
 {
     assert(isIdentical(tanh(0.0), 0.0));
-    assert(tanh(1.0).approxEqual(sinh(1.0) / cosh(1.0)));
+    assert(tanh(1.0).isClose(sinh(1.0) / cosh(1.0)));
 }
 
 private F _tanh(F)(F x)
@@ -1690,17 +1676,10 @@ version (none) // LDC FIXME: Use of this LLVM intrinsic causes a unit test failu
 else
 {
 
+pragma(inline, true)
 real exp(real x) @trusted pure nothrow @nogc // TODO: @safe
 {
-    version (InlineAsm_X86_X87)
-    {
-        //  e^^x = 2^^(LOG2E*x)
-        // (This is valid because the overflow & underflow limits for exp
-        // and exp2 are so similar).
-        if (!__ctfe)
-            return exp2Asm(LOG2E*x);
-    }
-    else version (InlineAsm_X86_64_X87)
+    version (InlineAsm_X87)
     {
         //  e^^x = 2^^(LOG2E*x)
         // (This is valid because the overflow & underflow limits for exp
@@ -1712,9 +1691,11 @@ real exp(real x) @trusted pure nothrow @nogc // TODO: @safe
 }
 
 /// ditto
+pragma(inline, true)
 double exp(double x) @safe pure nothrow @nogc { return __ctfe ? cast(double) exp(cast(real) x) : expImpl(x); }
 
 /// ditto
+pragma(inline, true)
 float exp(float x) @safe pure nothrow @nogc { return __ctfe ? cast(float) exp(cast(real) x) : expImpl(x); }
 
 ///
@@ -2021,9 +2002,10 @@ private T expImpl(T)(T x) @safe pure nothrow @nogc
  *    $(TR $(TD $(NAN))        $(TD $(NAN))       )
  *  )
  */
+pragma(inline, true)
 real expm1(real x) @trusted pure nothrow @nogc // TODO: @safe
 {
-    version (InlineAsm_X86_Any_X87)
+    version (InlineAsm_X87)
     {
         if (!__ctfe)
             return expm1Asm(x);
@@ -2032,12 +2014,14 @@ real expm1(real x) @trusted pure nothrow @nogc // TODO: @safe
 }
 
 /// ditto
+pragma(inline, true)
 double expm1(double x) @safe pure nothrow @nogc
 {
     return __ctfe ? cast(double) expm1(cast(real) x) : expm1Impl(x);
 }
 
 /// ditto
+pragma(inline, true)
 float expm1(float x) @safe pure nothrow @nogc
 {
     // no single-precision version in Cephes => use double precision
@@ -2052,10 +2036,10 @@ float expm1(float x) @safe pure nothrow @nogc
     assert(expm1(2.0).feqrel(6.3890) > 16);
 }
 
-version (InlineAsm_X86_Any_X87)
+version (InlineAsm_X87)
 private real expm1Asm(real x) @trusted pure nothrow @nogc
 {
-    version (D_InlineAsm_X86)
+    version (X86)
     {
         enum PARAMSIZE = (real.sizeof+3)&(0xFFFF_FFFC); // always a multiple of 4
         asm pure nothrow @nogc
@@ -2127,7 +2111,7 @@ L_largenegative:
             ret PARAMSIZE;
         }
     }
-    else version (D_InlineAsm_X86_64)
+    else version (X86_64)
     {
         asm pure nothrow @nogc
         {
@@ -2351,7 +2335,7 @@ private T expm1Impl(T)(T x) @safe pure nothrow @nogc
             const T r = exp(x) - 1;
 
             //printf("expm1(%Lg) = %Lg, should approximately be %Lg\n", cast(real) x, cast(real) e, cast(real) r);
-            assert(approxEqual(r, e));
+            assert(isClose(r, e, CommonDefaultFor!(T,T), CommonDefaultFor!(T,T)));
         }
     }
 
@@ -2382,9 +2366,10 @@ version (none) // LDC FIXME: Use of this LLVM intrinsic causes a unit test failu
 else
 {
 
+pragma(inline, true)
 real exp2(real x) @nogc @trusted pure nothrow // TODO: @safe
 {
-    version (InlineAsm_X86_Any_X87)
+    version (InlineAsm_X87)
     {
         if (!__ctfe)
             return exp2Asm(x);
@@ -2393,9 +2378,11 @@ real exp2(real x) @nogc @trusted pure nothrow // TODO: @safe
 }
 
 /// ditto
+pragma(inline, true)
 double exp2(double x) @nogc @safe pure nothrow { return __ctfe ? cast(double) exp2(cast(real) x) : exp2Impl(x); }
 
 /// ditto
+pragma(inline, true)
 float exp2(float x) @nogc @safe pure nothrow { return __ctfe ? cast(float) exp2(cast(real) x) : exp2Impl(x); }
 
 ///
@@ -2416,10 +2403,10 @@ float exp2(float x) @nogc @safe pure nothrow { return __ctfe ? cast(float) exp2(
     }
 }
 
-version (InlineAsm_X86_Any_X87)
+version (InlineAsm_X87)
 private real exp2Asm(real x) @nogc @trusted pure nothrow
 {
-    version (D_InlineAsm_X86)
+    version (X86)
     {
         enum PARAMSIZE = (real.sizeof+3)&(0xFFFF_FFFC); // always a multiple of 4
 
@@ -2505,7 +2492,7 @@ L_was_nan:
             ret PARAMSIZE;
         }
     }
-    else version (D_InlineAsm_X86_64)
+    else version (X86_64)
     {
         asm pure nothrow @nogc
         {
@@ -2762,7 +2749,7 @@ private T exp2Impl(T)(T x) @nogc @safe pure nothrow
             const T e = exp2(x);
 
             //printf("exp2(%Lg) = %Lg, should be %Lg\n", cast(real) x, cast(real) e, cast(real) r);
-            assert(approxEqual(r, e));
+            assert(isClose(r, e));
         }
     }
 
@@ -3021,7 +3008,7 @@ if (isFloatingPoint!T)
     int exp;
     real mantissa = frexp(123.456L, exp);
 
-    assert(approxEqual(mantissa * pow(2.0L, cast(real) exp), 123.456L));
+    assert(isClose(mantissa * pow(2.0L, cast(real) exp), 123.456L));
 
     assert(frexp(-real.nan, exp) && exp == int.min);
     assert(frexp(real.nan, exp) && exp == int.min);
@@ -4005,7 +3992,7 @@ real log2(real x) @safe pure nothrow @nogc
 ///
 @safe unittest
 {
-    assert(approxEqual(log2(1024.0L), 10));
+    assert(isClose(log2(1024.0L), 10));
 }
 
 @safe @nogc nothrow unittest
@@ -4030,24 +4017,27 @@ real log2(real x) @safe pure nothrow @nogc
  */
 real logb(real x) @trusted nothrow @nogc
 {
-    version (Win64_DMD_InlineAsm_X87)
+    version (InlineAsm_X87_MSVC)
     {
-        asm pure nothrow @nogc
+        version (X86_64)
         {
-            naked                       ;
-            fld     real ptr [RCX]      ;
-            fxtract                     ;
-            fstp    ST(0)               ;
-            ret                         ;
+            asm pure nothrow @nogc
+            {
+                naked                       ;
+                fld     real ptr [RCX]      ;
+                fxtract                     ;
+                fstp    ST(0)               ;
+                ret                         ;
+            }
         }
-    }
-    else version (none) // LDC: was `MSVC_InlineAsm`
-    {
-        asm pure nothrow @nogc
+        else
         {
-            fld     x                   ;
-            fxtract                     ;
-            fstp    ST(0)               ;
+            asm pure nothrow @nogc
+            {
+                fld     x                   ;
+                fxtract                     ;
+                fstp    ST(0)               ;
+            }
         }
     }
     else
@@ -4142,15 +4132,15 @@ real modf(real x, ref real i) @trusted nothrow @nogc
  *      $(TR $(TD $(PLUSMN)0.0)      $(TD $(PLUSMN)0.0) )
  *      )
  */
-pragma(inline, true) // LDC
+pragma(inline, true)
 real scalbn(real x, int n) @safe pure nothrow @nogc { return _scalbn(x,n); }
 
 /// ditto
-pragma(inline, true) // LDC
+pragma(inline, true)
 double scalbn(double x, int n) @safe pure nothrow @nogc { return _scalbn(x,n); }
 
 /// ditto
-pragma(inline, true) // LDC
+pragma(inline, true)
 float scalbn(float x, int n) @safe pure nothrow @nogc { return _scalbn(x,n); }
 
 ///
@@ -4409,47 +4399,48 @@ real hypot(real x, real y) @safe pure nothrow @nogc
 pragma(inline, true) // LDC
 real ceil(real x) @trusted pure nothrow @nogc
 {
-  version (LDC)
-  {
-    return llvm_ceil(x);
-  }
-  else
-  {
-    version (Win64_DMD_InlineAsm)
+    version (LDC)
     {
-        asm pure nothrow @nogc
-        {
-            naked                       ;
-            fld     real ptr [RCX]      ;
-            fstcw   8[RSP]              ;
-            mov     AL,9[RSP]           ;
-            mov     DL,AL               ;
-            and     AL,0xC3             ;
-            or      AL,0x08             ; // round to +infinity
-            mov     9[RSP],AL           ;
-            fldcw   8[RSP]              ;
-            frndint                     ;
-            mov     9[RSP],DL           ;
-            fldcw   8[RSP]              ;
-            ret                         ;
-        }
+        return llvm_ceil(x);
     }
-    else version (MSVC_InlineAsm)
+    else version (InlineAsm_X87_MSVC)
     {
-        short cw;
-        asm pure nothrow @nogc
+        version (X86_64)
         {
-            fld     x                   ;
-            fstcw   cw                  ;
-            mov     AL,byte ptr cw+1    ;
-            mov     DL,AL               ;
-            and     AL,0xC3             ;
-            or      AL,0x08             ; // round to +infinity
-            mov     byte ptr cw+1,AL    ;
-            fldcw   cw                  ;
-            frndint                     ;
-            mov     byte ptr cw+1,DL    ;
-            fldcw   cw                  ;
+            asm pure nothrow @nogc
+            {
+                naked                       ;
+                fld     real ptr [RCX]      ;
+                fstcw   8[RSP]              ;
+                mov     AL,9[RSP]           ;
+                mov     DL,AL               ;
+                and     AL,0xC3             ;
+                or      AL,0x08             ; // round to +infinity
+                mov     9[RSP],AL           ;
+                fldcw   8[RSP]              ;
+                frndint                     ;
+                mov     9[RSP],DL           ;
+                fldcw   8[RSP]              ;
+                ret                         ;
+            }
+        }
+        else
+        {
+            short cw;
+            asm pure nothrow @nogc
+            {
+                fld     x                   ;
+                fstcw   cw                  ;
+                mov     AL,byte ptr cw+1    ;
+                mov     DL,AL               ;
+                and     AL,0xC3             ;
+                or      AL,0x08             ; // round to +infinity
+                mov     byte ptr cw+1,AL    ;
+                fldcw   cw                  ;
+                frndint                     ;
+                mov     byte ptr cw+1,DL    ;
+                fldcw   cw                  ;
+            }
         }
     }
     else
@@ -4464,7 +4455,6 @@ real ceil(real x) @trusted pure nothrow @nogc
 
         return y;
     }
-  }
 }
 
 ///
@@ -4561,47 +4551,48 @@ float ceil(float x) @trusted pure nothrow @nogc
 pragma(inline, true) // LDC
 real floor(real x) @trusted pure nothrow @nogc
 {
-  version (LDC)
-  {
-    return llvm_floor(x);
-  }
-  else
-  {
-    version (Win64_DMD_InlineAsm)
+    version (LDC)
     {
-        asm pure nothrow @nogc
-        {
-            naked                       ;
-            fld     real ptr [RCX]      ;
-            fstcw   8[RSP]              ;
-            mov     AL,9[RSP]           ;
-            mov     DL,AL               ;
-            and     AL,0xC3             ;
-            or      AL,0x04             ; // round to -infinity
-            mov     9[RSP],AL           ;
-            fldcw   8[RSP]              ;
-            frndint                     ;
-            mov     9[RSP],DL           ;
-            fldcw   8[RSP]              ;
-            ret                         ;
-        }
+        return llvm_floor(x);
     }
-    else version (MSVC_InlineAsm)
+    else version (InlineAsm_X87_MSVC)
     {
-        short cw;
-        asm pure nothrow @nogc
+        version (X86_64)
         {
-            fld     x                   ;
-            fstcw   cw                  ;
-            mov     AL,byte ptr cw+1    ;
-            mov     DL,AL               ;
-            and     AL,0xC3             ;
-            or      AL,0x04             ; // round to -infinity
-            mov     byte ptr cw+1,AL    ;
-            fldcw   cw                  ;
-            frndint                     ;
-            mov     byte ptr cw+1,DL    ;
-            fldcw   cw                  ;
+            asm pure nothrow @nogc
+            {
+                naked                       ;
+                fld     real ptr [RCX]      ;
+                fstcw   8[RSP]              ;
+                mov     AL,9[RSP]           ;
+                mov     DL,AL               ;
+                and     AL,0xC3             ;
+                or      AL,0x04             ; // round to -infinity
+                mov     9[RSP],AL           ;
+                fldcw   8[RSP]              ;
+                frndint                     ;
+                mov     9[RSP],DL           ;
+                fldcw   8[RSP]              ;
+                ret                         ;
+            }
+        }
+        else
+        {
+            short cw;
+            asm pure nothrow @nogc
+            {
+                fld     x                   ;
+                fstcw   cw                  ;
+                mov     AL,byte ptr cw+1    ;
+                mov     DL,AL               ;
+                and     AL,0xC3             ;
+                or      AL,0x04             ; // round to -infinity
+                mov     byte ptr cw+1,AL    ;
+                fldcw   cw                  ;
+                frndint                     ;
+                mov     byte ptr cw+1,DL    ;
+                fldcw   cw                  ;
+            }
         }
     }
     else
@@ -4612,7 +4603,6 @@ real floor(real x) @trusted pure nothrow @nogc
 
         return floorImpl(x);
     }
-  }
 }
 
 ///
@@ -4808,6 +4798,7 @@ version (LDC)
 else
 {
 
+pragma(inline, true)
 real nearbyint(real x) @safe pure nothrow @nogc
 {
     return core.stdc.math.nearbyintl(x);
@@ -4891,7 +4882,7 @@ float rint(float x) @safe pure nothrow @nogc
  */
 long lrint(real x) @trusted pure nothrow @nogc
 {
-    version (InlineAsm_X86_Any_X87)
+    version (InlineAsm_X87)
     {
         version (Win64)
         {
@@ -5188,41 +5179,44 @@ else
 
 real trunc(real x) @trusted nothrow @nogc pure
 {
-    version (Win64_DMD_InlineAsm)
+    version (InlineAsm_X87_MSVC)
     {
-        asm pure nothrow @nogc
+        version (X86_64)
         {
-            naked                       ;
-            fld     real ptr [RCX]      ;
-            fstcw   8[RSP]              ;
-            mov     AL,9[RSP]           ;
-            mov     DL,AL               ;
-            and     AL,0xC3             ;
-            or      AL,0x0C             ; // round to 0
-            mov     9[RSP],AL           ;
-            fldcw   8[RSP]              ;
-            frndint                     ;
-            mov     9[RSP],DL           ;
-            fldcw   8[RSP]              ;
-            ret                         ;
+            asm pure nothrow @nogc
+            {
+                naked                       ;
+                fld     real ptr [RCX]      ;
+                fstcw   8[RSP]              ;
+                mov     AL,9[RSP]           ;
+                mov     DL,AL               ;
+                and     AL,0xC3             ;
+                or      AL,0x0C             ; // round to 0
+                mov     9[RSP],AL           ;
+                fldcw   8[RSP]              ;
+                frndint                     ;
+                mov     9[RSP],DL           ;
+                fldcw   8[RSP]              ;
+                ret                         ;
+            }
         }
-    }
-    else version (MSVC_InlineAsm)
-    {
-        short cw;
-        asm pure nothrow @nogc
+        else
         {
-            fld     x                   ;
-            fstcw   cw                  ;
-            mov     AL,byte ptr cw+1    ;
-            mov     DL,AL               ;
-            and     AL,0xC3             ;
-            or      AL,0x0C             ; // round to 0
-            mov     byte ptr cw+1,AL    ;
-            fldcw   cw                  ;
-            frndint                     ;
-            mov     byte ptr cw+1,DL    ;
-            fldcw   cw                  ;
+            short cw;
+            asm pure nothrow @nogc
+            {
+                fld     x                   ;
+                fstcw   cw                  ;
+                mov     AL,byte ptr cw+1    ;
+                mov     DL,AL               ;
+                and     AL,0xC3             ;
+                or      AL,0x0C             ; // round to 0
+                mov     byte ptr cw+1,AL    ;
+                fldcw   cw                  ;
+                frndint                     ;
+                mov     byte ptr cw+1,DL    ;
+                fldcw   cw                  ;
+            }
         }
     }
     else
@@ -5348,7 +5342,7 @@ private:
 
     static uint getIeeeFlags() @trusted pure
     {
-        version (InlineAsm_X86_Any)
+        version (InlineAsm_X87)
         {
             ushort sw;
           version (LDC)
@@ -5430,7 +5424,7 @@ private:
 
     static void resetIeeeFlags() @trusted
     {
-        version (InlineAsm_X86_Any)
+        version (InlineAsm_X87)
         {
           version (LDC)
           {
@@ -6191,8 +6185,7 @@ private:
             }
             return cont;
         }
-        else
-        version (D_InlineAsm_X86_64)
+        else version (D_InlineAsm_X86_64)
         {
             short cont;
             asm pure nothrow @nogc
@@ -7955,6 +7948,7 @@ version (LDC)
     //float  fma(float  x, float  y, float  z) @safe pure nothrow @nogc { return llvm_fma(x, y, z); }
 }
 else
+pragma(inline, true)
 real fma(real x, real y, real z) @safe pure nothrow @nogc { return (x * y) + z; }
 
 ///
@@ -8073,8 +8067,8 @@ if (isFloatingPoint!(F) && isIntegral!(G))
 
     assert(pow(x, neg1) == 1 / x);
 
-    assert(approxEqual(pow(xd, neg2), cast(double) (1 / (x * x)), 1e-25, 0.0));
-    assert(approxEqual(pow(xf, neg8), cast(float) (1 / ((x * x) * (x * x) * (x * x) * (x * x))), 1e-15, 0.0));
+    assert(isClose(pow(xd, neg2), cast(double) (1 / (x * x)), 1e-25));
+    assert(isClose(pow(xf, neg8), cast(float) (1 / ((x * x) * (x * x) * (x * x) * (x * x))), 1e-15));
 
     assert(feqrel(pow(x, neg3),  1 / (x * x * x)) >= real.mant_dig - 1);
 }
@@ -8291,7 +8285,14 @@ if (isFloatingPoint!(F) && isFloatingPoint!(G))
 
         if (isInfinity(y))
         {
-            if (fabs(x) > 1)
+            if (isInfinity(x))
+            {
+                if (!signbit(y) && !signbit(x))
+                    return F.infinity;
+                else
+                    return F.nan;
+            }
+            else if (fabs(x) > 1)
             {
                 if (signbit(y))
                     return +0.0;
@@ -8300,7 +8301,7 @@ if (isFloatingPoint!(F) && isFloatingPoint!(G))
             }
             else if (fabs(x) == 1)
             {
-                return y * 0; // generate NaN.
+                return F.nan;
             }
             else // < 1
             {
@@ -8319,15 +8320,19 @@ if (isFloatingPoint!(F) && isFloatingPoint!(G))
                 {
                     if (i == y && i & 1)
                         return -F.infinity;
-                    else
+                    else if (i == y)
                         return F.infinity;
+                    else
+                        return -F.nan;
                 }
                 else if (y < 0.0)
                 {
                     if (i == y && i & 1)
                         return -0.0;
-                    else
+                    else if (i == y)
                         return +0.0;
+                    else
+                        return F.nan;
                 }
             }
             else
@@ -8475,32 +8480,69 @@ if (isFloatingPoint!(F) && isFloatingPoint!(G))
 ///
 @safe pure nothrow @nogc unittest
 {
-    assert(pow(1.0, 2.0) == 1.0);
-    assert(pow(0.0, 0.0) == 1.0);
-    assert(pow(1.5, 10.0).feqrel(57.665) > 16);
+    assert(isClose(pow(2.0, 3.0), 8.0));
+    assert(isClose(pow(1.5, 10.0), 57.6650390625));
 
-    // special values
+    // square root of 9
+    assert(isClose(pow(9.0, 0.5), 3.0));
+    // 10th root of 1024
+    assert(isClose(pow(1024.0, 0.1), 2.0));
+
+    assert(isClose(pow(-4.0, 3.0), -64.0));
+
+    // reciprocal of 4 ^^ 2
+    assert(isClose(pow(4.0, -2.0), 0.0625));
+    // reciprocal of (-2) ^^ 3
+    assert(isClose(pow(-2.0, -3.0), -0.125));
+
+    assert(isClose(pow(-2.5, 3.0), -15.625));
+    // reciprocal of 2.5 ^^ 3
+    assert(isClose(pow(2.5, -3.0), 0.064));
+    // reciprocal of (-2.5) ^^ 3
+    assert(isClose(pow(-2.5, -3.0), -0.064));
+
+    // reciprocal of square root of 4
+    assert(isClose(pow(4.0, -0.5), 0.5));
+
+    // per definition
+    assert(isClose(pow(0.0, 0.0), 1.0));
+}
+
+///
+@safe pure nothrow @nogc unittest
+{
+    // the result is a complex number
+    // which cannot be represented as floating point number
+    import std.math : isNaN;
+    assert(isNaN(pow(-2.5, -1.5)));
+
+    // use the ^^-operator of std.complex instead
+    import std.complex : complex;
+    auto c1 = complex(-2.5, 0.0);
+    auto c2 = complex(-1.5, 0.0);
+    auto result = c1 ^^ c2;
+    assert(isClose(result.re, -4.64705438e-17));
+    assert(isClose(result.im, 2.52982213e-1));
+}
+
+@safe pure nothrow @nogc unittest
+{
     assert(pow(1.5, real.infinity) == real.infinity);
     assert(pow(0.5, real.infinity) == 0.0);
     assert(pow(1.5, -real.infinity) == 0.0);
     assert(pow(0.5, -real.infinity) == real.infinity);
     assert(pow(real.infinity, 1.0) == real.infinity);
     assert(pow(real.infinity, -1.0) == 0.0);
+    assert(pow(real.infinity, real.infinity) == real.infinity);
     assert(pow(-real.infinity, 1.0) == -real.infinity);
     assert(pow(-real.infinity, 2.0) == real.infinity);
     assert(pow(-real.infinity, -1.0) == -0.0);
     assert(pow(-real.infinity, -2.0) == 0.0);
-    version (LDC)
-    {
-        // ignore sign for enabled optimizations
-        assert(isNaN(pow(1.0, real.infinity)));
-    }
-    else
-    {
-        assert(pow(1.0, real.infinity) is -real.nan);
-    }
+    assert(isNaN(pow(1.0, real.infinity)));
     assert(pow(0.0, -1.0) == real.infinity);
     assert(pow(real.nan, 0.0) == 1.0);
+    assert(isNaN(pow(real.nan, 3.0)));
+    assert(isNaN(pow(3.0, real.nan)));
 }
 
 @safe pure nothrow @nogc unittest
@@ -8562,12 +8604,24 @@ if (isFloatingPoint!(F) && isFloatingPoint!(G))
     assert(pow(-1.0L, -maxOdd - 1.0L) == 1.0L);
 
     // Now, actual numbers.
-    assert(approxEqual(pow(two, three), 8.0));
-    assert(approxEqual(pow(two, -2.5), 0.1767767));
+    assert(isClose(pow(two, three), 8.0));
+    assert(isClose(pow(two, -2.5), 0.1767766953));
 
     // Test integer to float power.
     immutable uint twoI = 2;
-    assert(approxEqual(pow(twoI, three), 8.0));
+    assert(isClose(pow(twoI, three), 8.0));
+}
+
+// https://issues.dlang.org/show_bug.cgi?id=20508
+@safe pure nothrow @nogc unittest
+{
+    assert(isNaN(pow(-double.infinity, 0.5)));
+
+    assert(isNaN(pow(-real.infinity, real.infinity)));
+    assert(isNaN(pow(-real.infinity, -real.infinity)));
+    assert(isNaN(pow(-real.infinity, 1.234)));
+    assert(isNaN(pow(-real.infinity, -0.751)));
+    assert(pow(-real.infinity, 0.0) == 1.0);
 }
 
 /** Computes the value of a positive integer `x`, raised to the power `n`, modulo `m`.
@@ -9148,6 +9202,10 @@ private real polyImpl(real x, in real[] A) @trusted pure nothrow @nogc
    Computes whether a values is approximately equal to a reference value,
    admitting a maximum relative difference, and a maximum absolute difference.
 
+   Warning:
+        This template is considered out-dated. It will be removed from
+        Phobos in 2.106.0. Please use $(LREF isClose) instead.
+
    Params:
         value = Value to compare.
         reference = Reference value.
@@ -9172,6 +9230,7 @@ private real polyImpl(real x, in real[] A) @trusted pure nothrow @nogc
     See_Also:
         Use $(LREF feqrel) to get the number of equal bits in the mantissa.
  */
+deprecated("approxEqual will be removed in 2.106.0. Please use isClose instead.")
 bool approxEqual(T, U, V)(T value, U reference, V maxRelDiff = 1e-2, V maxAbsDiff = 1e-5)
 {
     import std.range.primitives : empty, front, isInputRange, popFront;
@@ -9240,8 +9299,7 @@ bool approxEqual(T, U, V)(T value, U reference, V maxRelDiff = 1e-2, V maxAbsDif
     }
 }
 
-///
-@safe pure nothrow unittest
+deprecated @safe pure nothrow unittest
 {
     assert(approxEqual(1.0, 1.0099));
     assert(!approxEqual(1.0, 1.011));
@@ -9256,8 +9314,7 @@ bool approxEqual(T, U, V)(T value, U reference, V maxRelDiff = 1e-2, V maxAbsDif
     assert(approxEqual(arr1, arr2));
 }
 
-///
-@safe pure nothrow unittest
+deprecated @safe pure nothrow unittest
 {
     // relative comparison depends on reference, make sure proper
     // side is used when comparing range to single value. Based on
@@ -9270,8 +9327,7 @@ bool approxEqual(T, U, V)(T value, U reference, V maxRelDiff = 1e-2, V maxAbsDif
     assert(!b.approxEqual(a));
 }
 
-///
-@safe pure nothrow @nogc unittest
+deprecated @safe pure nothrow @nogc unittest
 {
     assert(!approxEqual(0.0,1e-15,1e-9,0.0));
     assert(approxEqual(0.0,1e-15,1e-9,1e-9));
@@ -9281,8 +9337,7 @@ bool approxEqual(T, U, V)(T value, U reference, V maxRelDiff = 1e-2, V maxAbsDif
     assert(!approxEqual(1.0000000011,1.0,1e-9,0.0));
 }
 
-///
-@safe pure nothrow @nogc unittest
+deprecated @safe pure nothrow @nogc unittest
 {
     // maybe unintuitive behavior
     assert(approxEqual(1000.0,1010.0));
@@ -9292,7 +9347,7 @@ bool approxEqual(T, U, V)(T value, U reference, V maxRelDiff = 1e-2, V maxAbsDif
     assert(!approxEqual(-1e-30,1e-30,1e-2,0.0));
 }
 
-@safe pure nothrow @nogc unittest
+deprecated @safe pure nothrow @nogc unittest
 {
     int a = 10;
     assert(approxEqual(10, a));
@@ -9307,7 +9362,7 @@ bool approxEqual(T, U, V)(T value, U reference, V maxRelDiff = 1e-2, V maxAbsDif
     assert(approxEqual(0.0f,0.0));
 }
 
-@safe pure nothrow @nogc unittest
+deprecated @safe pure nothrow @nogc unittest
 {
     real num = real.infinity;
     assert(num == real.infinity);
@@ -9321,12 +9376,12 @@ bool approxEqual(T, U, V)(T value, U reference, V maxRelDiff = 1e-2, V maxAbsDif
     assert(!approxEqual(real.nan,real.nan));
 }
 
-@safe pure nothrow unittest
+deprecated @safe pure nothrow unittest
 {
     assert(!approxEqual([1.0,2.0,3.0],[1.0,2.0]));
     assert(!approxEqual([1.0,2.0],[1.0,2.0,3.0]));
 
-//    assert(approxEqual([],[])); //FIXME: does not work yet
+    assert(approxEqual!(real[],real[])([],[]));
     assert(approxEqual(cast(real[])[],cast(real[])[]));
 }
 
