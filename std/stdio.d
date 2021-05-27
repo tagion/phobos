@@ -1,6 +1,39 @@
 // Written in the D programming language.
 
 /**
+$(SCRIPT inhibitQuickIndex = 1;)
+$(DIVC quickindex,
+$(BOOKTABLE,
+$(TR $(TH Category) $(TH Symbols))
+$(TR $(TD File handles) $(TD
+    $(MYREF __popen)
+    $(MYREF File)
+    $(MYREF isFileHandle)
+    $(MYREF openNetwork)
+    $(MYREF stderr)
+    $(MYREF stdin)
+    $(MYREF stdout)
+))
+$(TR $(TD Reading) $(TD
+    $(MYREF chunks)
+    $(MYREF lines)
+    $(MYREF readf)
+    $(MYREF readln)
+))
+$(TR $(TD Writing) $(TD
+    $(MYREF toFile)
+    $(MYREF write)
+    $(MYREF writef)
+    $(MYREF writefln)
+    $(MYREF writeln)
+))
+$(TR $(TD Misc) $(TD
+    $(MYREF KeepTerminator)
+    $(MYREF LockType)
+    $(MYREF StdioException)
+))
+))
+
 Standard I/O functions that extend $(B core.stdc.stdio).  $(B core.stdc.stdio)
 is $(D_PARAM public)ally imported when importing $(B std.stdio).
 
@@ -62,18 +95,22 @@ else version (CRuntime_UClibc)
 else version (OSX)
 {
     version = GENERIC_IO;
+    version = Darwin;
 }
 else version (iOS)
 {
     version = GENERIC_IO;
+    version = Darwin;
 }
 else version (TVOS)
 {
     version = GENERIC_IO;
+    version = Darwin;
 }
 else version (WatchOS)
 {
     version = GENERIC_IO;
+    version = Darwin;
 }
 else version (FreeBSD)
 {
@@ -121,107 +158,127 @@ version (Windows)
 
 version (Posix)
 {
-    static import core.sys.posix.stdio; // getdelim
+    static import core.sys.posix.stdio; // getdelim, flockfile
 }
 
 version (DIGITAL_MARS_STDIO)
 {
-    extern (C)
-    {
-        /* **
-         * Digital Mars under-the-hood C I/O functions.
-         * Use _iobuf* for the unshared version of FILE*,
-         * usable when the FILE is locked.
-         */
-      nothrow:
-      @nogc:
-        int _fputc_nlock(int, _iobuf*);
-        int _fputwc_nlock(int, _iobuf*);
-        int _fgetc_nlock(_iobuf*);
-        int _fgetwc_nlock(_iobuf*);
-        int __fp_lock(FILE*);
-        void __fp_unlock(FILE*);
+    private alias _FPUTC = _fputc_nlock;
+    private alias _FPUTWC = _fputwc_nlock;
+    private alias _FGETC = _fgetc_nlock;
+    private alias _FGETWC = _fgetwc_nlock;
+    private alias _FLOCK = __fp_lock;
+    private alias _FUNLOCK = __fp_unlock;
 
-        int setmode(int, int);
-    }
+    // Alias for MICROSOFT_STDIO compatibility.
+    // @@@DEPRECATED_2.107@@@
+    // Rename this back to _setmode once the deprecation phase has ended.
+    private alias __setmode = setmode;
+
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal alias FPUTC was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
     alias FPUTC = _fputc_nlock;
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal alias FPUTWC was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
     alias FPUTWC = _fputwc_nlock;
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal alias FGETC was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
     alias FGETC = _fgetc_nlock;
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal alias FGETWC was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
     alias FGETWC = _fgetwc_nlock;
-
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal alias FLOCK was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
     alias FLOCK = __fp_lock;
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal alias FUNLOCK was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
     alias FUNLOCK = __fp_unlock;
-
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal alias _setmode was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
     alias _setmode = setmode;
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal function _fileno was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
     int _fileno(FILE* f) { return f._file; }
-    alias fileno = _fileno;
 }
 else version (MICROSOFT_STDIO)
 {
-    extern (C)
-    {
-        /* **
-         * Microsoft under-the-hood C I/O functions
-         */
-      nothrow:
-      @nogc:
-        int _fputc_nolock(int, _iobuf*);
-        int _fputwc_nolock(int, _iobuf*);
-        int _fgetc_nolock(_iobuf*);
-        int _fgetwc_nolock(_iobuf*);
-        void _lock_file(FILE*);
-        void _unlock_file(FILE*);
-        int _setmode(int, int);
-        int _fileno(FILE*);
-        FILE* _fdopen(int, const (char)*);
-        int _fseeki64(FILE*, long, int);
-        long _ftelli64(FILE*);
-    }
+    private alias _FPUTC = _fputc_nolock;
+    private alias _FPUTWC = _fputwc_nolock;
+    private alias _FGETC = _fgetc_nolock;
+    private alias _FGETWC = _fgetwc_nolock;
+    private alias _FLOCK = _lock_file;
+    private alias _FUNLOCK = _unlock_file;
+
+    // @@@DEPRECATED_2.107@@@
+    // Remove this once the deprecation phase for DIGITAL_MARS_STDIO has ended.
+    private alias __setmode = _setmode;
+
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal alias FPUTC was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
     alias FPUTC = _fputc_nolock;
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal alias FPUTWC was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
     alias FPUTWC = _fputwc_nolock;
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal alias FGETC was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
     alias FGETC = _fgetc_nolock;
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal alias FGETWC was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
     alias FGETWC = _fgetwc_nolock;
-
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal alias FLOCK was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
     alias FLOCK = _lock_file;
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal alias FUNLOCK was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
     alias FUNLOCK = _unlock_file;
-
-    alias setmode = _setmode;
-    alias fileno = _fileno;
-    enum
-    {
-        _O_WTEXT = 0x10000,
-        _O_U16TEXT = 0x20000,
-        _O_U8TEXT = 0x40000,
-    }
 }
 else version (GCC_IO)
 {
-    /* **
-     * Gnu under-the-hood C I/O functions; see
-     * http://gnu.org/software/libc/manual/html_node/I_002fO-on-Streams.html
-     */
-    extern (C)
-    {
-      nothrow:
-      @nogc:
-        int fputc_unlocked(int, _iobuf*);
-        int fputwc_unlocked(wchar_t, _iobuf*);
-        int fgetc_unlocked(_iobuf*);
-        int fgetwc_unlocked(_iobuf*);
-        void flockfile(FILE*);
-        void funlockfile(FILE*);
+    private alias _FPUTC = fputc_unlocked;
+    private alias _FPUTWC = fputwc_unlocked;
+    private alias _FGETC = fgetc_unlocked;
+    private alias _FGETWC = fgetwc_unlocked;
+    private alias _FLOCK = core.sys.posix.stdio.flockfile;
+    private alias _FUNLOCK = core.sys.posix.stdio.funlockfile;
 
-        private size_t fwrite_unlocked(const(void)* ptr,
-                size_t size, size_t n, _iobuf *stream);
-    }
-
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal alias FPUTC was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
     alias FPUTC = fputc_unlocked;
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal alias FPUTWC was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
     alias FPUTWC = fputwc_unlocked;
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal alias FGETC was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
     alias FGETC = fgetc_unlocked;
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal alias FGETWC was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
     alias FGETWC = fgetwc_unlocked;
-
-    alias FLOCK = flockfile;
-    alias FUNLOCK = funlockfile;
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal alias FLOCK was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
+    alias FLOCK = core.sys.posix.stdio.flockfile;
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal alias FUNLOCK was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
+    alias FUNLOCK = core.sys.posix.stdio.funlockfile;
 }
 else version (MINGW_IO)
 {
@@ -316,32 +373,82 @@ else version (GENERIC_IO)
     nothrow:
     @nogc:
 
-    extern (C)
+    private int _FPUTC(int c, _iobuf* fp) { return fputc(c, cast(shared) fp); }
+    private int _FPUTWC(wchar_t c, _iobuf* fp)
     {
-        void flockfile(FILE*);
-        void funlockfile(FILE*);
+        import core.stdc.wchar_ : fputwc;
+        return fputwc(c, cast(shared) fp);
+    }
+    private int _FGETC(_iobuf* fp) { return fgetc(cast(shared) fp); }
+    private int _FGETWC(_iobuf* fp)
+    {
+        import core.stdc.wchar_ : fgetwc;
+        return fgetwc(cast(shared) fp);
     }
 
+    version (Posix)
+    {
+        private alias _FLOCK = core.sys.posix.stdio.flockfile;
+        private alias _FUNLOCK = core.sys.posix.stdio.funlockfile;
+    }
+    else
+    {
+        static assert(0, "don't know how to lock files on GENERIC_IO");
+    }
+
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal function fputc_unlocked was unintentionally available "
+               ~ "from std.stdio and will be removed afer 2.107")
     int fputc_unlocked(int c, _iobuf* fp) { return fputc(c, cast(shared) fp); }
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal function fputwc_unlocked was unintentionally available "
+               ~ "from std.stdio and will be removed afer 2.107")
     int fputwc_unlocked(wchar_t c, _iobuf* fp)
     {
         import core.stdc.wchar_ : fputwc;
         return fputwc(c, cast(shared) fp);
     }
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal function fgetc_unlocked was unintentionally available "
+               ~ "from std.stdio and will be removed afer 2.107")
     int fgetc_unlocked(_iobuf* fp) { return fgetc(cast(shared) fp); }
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal function fgetwc_unlocked was unintentionally available "
+               ~ "from std.stdio and will be removed afer 2.107")
     int fgetwc_unlocked(_iobuf* fp)
     {
         import core.stdc.wchar_ : fgetwc;
         return fgetwc(cast(shared) fp);
     }
 
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal alias FPUTC was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
     alias FPUTC = fputc_unlocked;
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal alias FPUTWC was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
     alias FPUTWC = fputwc_unlocked;
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal alias FGETC was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
     alias FGETC = fgetc_unlocked;
+    // @@@DEPRECATED_2.107@@@
+    deprecated("internal alias FGETWC was unintentionally available from "
+               ~ "std.stdio and will be removed afer 2.107")
     alias FGETWC = fgetwc_unlocked;
 
-    alias FLOCK = flockfile;
-    alias FUNLOCK = funlockfile;
+    version (Posix)
+    {
+        // @@@DEPRECATED_2.107@@@
+        deprecated("internal alias FLOCK was unintentionally available from "
+                   ~ "std.stdio and will be removed afer 2.107")
+        alias FLOCK = core.sys.posix.stdio.flockfile;
+        // @@@DEPRECATED_2.107@@@
+        deprecated("internal alias FUNLOCK was unintentionally available from "
+                   ~ "std.stdio and will be removed afer 2.107")
+        alias FUNLOCK = core.sys.posix.stdio.funlockfile;
+    }
 }
 else
 {
@@ -400,7 +507,7 @@ public:
     {
         import std.conv : text;
         import std.exception : enforce;
-        import std.format : formattedRead;
+        import std.format.read : formattedRead;
         import std.string : chomp;
 
         enforce(file.isOpen, "ByRecord: File must be open");
@@ -839,12 +946,12 @@ Params:
             // position.
             auto fp = fopen("NUL", modez);
             errnoEnforce(fp, "Cannot open placeholder NUL stream");
-            FLOCK(fp);
+            _FLOCK(fp);
             auto iob = cast(_iobuf*) fp;
             .close(iob._file);
             iob._file = fd;
             iob._flag &= ~_IOTRAN;
-            FUNLOCK(fp);
+            _FUNLOCK(fp);
         }
         else
         {
@@ -1074,7 +1181,9 @@ Call $(LREF flush) before calling this function to flush the C `FILE` buffers fi
 
 This function calls
 $(HTTP msdn.microsoft.com/en-us/library/windows/desktop/aa364439%28v=vs.85%29.aspx,
-`FlushFileBuffers`) on Windows and
+`FlushFileBuffers`) on Windows,
+$(HTTP developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/fcntl.2.html,
+`F_FULLFSYNC fcntl`) on Darwin and
 $(HTTP pubs.opengroup.org/onlinepubs/7908799/xsh/fsync.html,
 `fsync`) on POSIX for the file handle.
 
@@ -1090,6 +1199,12 @@ Throws: `Exception` if the file is not opened or if the OS call fails.
         {
             import core.sys.windows.winbase : FlushFileBuffers;
             wenforce(FlushFileBuffers(windowsHandle), "FlushFileBuffers failed");
+        }
+        else version (Darwin)
+        {
+            import core.sys.darwin.fcntl : fcntl, F_FULLFSYNC;
+            import std.exception : errnoEnforce;
+            errnoEnforce(fcntl(fileno, F_FULLFSYNC, 0) != -1, "fcntl failed");
         }
         else
         {
@@ -1115,15 +1230,16 @@ Throws: `Exception` if `buffer` is empty.
  */
     T[] rawRead(T)(T[] buffer)
     {
-        import std.exception : errnoEnforce;
+        import std.exception : enforce, errnoEnforce;
 
         if (!buffer.length)
             throw new Exception("rawRead must take a non-empty buffer");
+        enforce(isOpen, "Attempting to read from an unopened file");
         version (Windows)
         {
-            immutable fd = ._fileno(_p.handle);
-            immutable mode = ._setmode(fd, _O_BINARY);
-            scope(exit) ._setmode(fd, mode);
+            immutable fd = .fileno(_p.handle);
+            immutable mode = .__setmode(fd, _O_BINARY);
+            scope(exit) .__setmode(fd, mode);
             version (DIGITAL_MARS_STDIO)
             {
                 import core.atomic : atomicOp;
@@ -1159,6 +1275,28 @@ Throws: `Exception` if `buffer` is empty.
         assert(buf == "\r\n\n\r\n");
     }
 
+    // https://issues.dlang.org/show_bug.cgi?id=21729
+    @system unittest
+    {
+        import std.exception : assertThrown;
+
+        File f;
+        ubyte[1] u;
+        assertThrown(f.rawRead(u));
+    }
+
+    // https://issues.dlang.org/show_bug.cgi?id=21728
+    @system unittest
+    {
+        import std.process : pipe;
+        import std.exception : assertThrown;
+
+        auto p = pipe();
+        p.readEnd.close;
+        ubyte[1] u;
+        assertThrown(p.readEnd.rawRead(u));
+    }
+
 /**
 Calls $(HTTP cplusplus.com/reference/clibrary/cstdio/fwrite.html, fwrite) for the file
 handle. The number of items to write and the size of each
@@ -1176,15 +1314,15 @@ Throws: `ErrnoException` if the file is not opened or if the call to `fwrite` fa
 
         version (Windows)
         {
-            immutable fd = ._fileno(_p.handle);
-            immutable oldMode = ._setmode(fd, _O_BINARY);
+            immutable fd = .fileno(_p.handle);
+            immutable oldMode = .__setmode(fd, _O_BINARY);
 
             if (oldMode != _O_BINARY)
             {
                 // need to flush the data that was written with the original mode
-                ._setmode(fd, oldMode);
-                flush(); // before changing translation mode ._setmode(fd, _O_BINARY);
-                .setmode(fd, _O_BINARY);
+                .__setmode(fd, oldMode);
+                flush(); // before changing translation mode .__setmode(fd, _O_BINARY);
+                .__setmode(fd, _O_BINARY);
             }
 
             version (DIGITAL_MARS_STDIO)
@@ -1202,7 +1340,7 @@ Throws: `ErrnoException` if the file is not opened or if the call to `fwrite` fa
                 if (oldMode != _O_BINARY)
                 {
                     flush();
-                    ._setmode(fd, oldMode);
+                    .__setmode(fd, oldMode);
                 }
             }
         }
@@ -1657,40 +1795,51 @@ Throws: `Exception` if the file is not opened.
     void write(S...)(S args)
     {
         import std.traits : isBoolean, isIntegral, isAggregateType;
+        import std.utf : UTFException;
         auto w = lockingTextWriter();
         foreach (arg; args)
         {
-            alias A = typeof(arg);
-            static if (isAggregateType!A || is(A == enum))
+            try
             {
-                import std.format : formattedWrite;
+                alias A = typeof(arg);
+                static if (isAggregateType!A || is(A == enum))
+                {
+                    import std.format.write : formattedWrite;
 
-                formattedWrite(w, "%s", arg);
-            }
-            else static if (isSomeString!A)
-            {
-                put(w, arg);
-            }
-            else static if (isIntegral!A)
-            {
-                import std.conv : toTextRange;
+                    formattedWrite(w, "%s", arg);
+                }
+                else static if (isSomeString!A)
+                {
+                    put(w, arg);
+                }
+                else static if (isIntegral!A)
+                {
+                    import std.conv : toTextRange;
 
-                toTextRange(arg, w);
-            }
-            else static if (isBoolean!A)
-            {
-                put(w, arg ? "true" : "false");
-            }
-            else static if (isSomeChar!A)
-            {
-                put(w, arg);
-            }
-            else
-            {
-                import std.format : formattedWrite;
+                    toTextRange(arg, w);
+                }
+                else static if (isBoolean!A)
+                {
+                    put(w, arg ? "true" : "false");
+                }
+                else static if (isSomeChar!A)
+                {
+                    put(w, arg);
+                }
+                else
+                {
+                    import std.format.write : formattedWrite;
 
-                // Most general case
-                formattedWrite(w, "%s", arg);
+                    // Most general case
+                    formattedWrite(w, "%s", arg);
+                }
+            }
+            catch (UTFException e)
+            {
+                /* Reset the writer so that it doesn't throw another
+                UTFException on destruction. */
+                w.highSurrogate = '\0';
+                throw e;
             }
         }
     }
@@ -1732,7 +1881,7 @@ Throws: `Exception` if the file is not opened.
     /// ditto
     void writef(Char, A...)(in Char[] fmt, A args)
     {
-        import std.format : formattedWrite;
+        import std.format.write : formattedWrite;
 
         formattedWrite(lockingTextWriter(), fmt, args);
     }
@@ -1751,7 +1900,7 @@ Throws: `Exception` if the file is not opened.
     /// ditto
     void writefln(Char, A...)(in Char[] fmt, A args)
     {
-        import std.format : formattedWrite;
+        import std.format.write : formattedWrite;
 
         auto w = lockingTextWriter();
         formattedWrite(w, fmt, args);
@@ -2097,7 +2246,7 @@ $(CONSOLE
     /// ditto
     uint readf(Data...)(scope const(char)[] format, auto ref Data data)
     {
-        import std.format : formattedRead;
+        import std.format.read : formattedRead;
 
         assert(isOpen);
         auto input = LockingTextReader(this);
@@ -3051,9 +3200,9 @@ is empty, throws an `Exception`. In case of an I/O error throws
                 // concept of ANSI/UNICODE mode. fputc doesn't work in UNICODE
                 // mode; fputwc has to be used. So that essentially means
                 // "wide-oriented" for us.
-                immutable int mode = _setmode(f.fileno, _O_TEXT);
+                immutable int mode = __setmode(f.fileno, _O_TEXT);
                     // Set some arbitrary mode to obtain the previous one.
-                _setmode(f.fileno, mode); // Restore previous mode.
+                __setmode(f.fileno, mode); // Restore previous mode.
                 if (mode & (_O_WTEXT | _O_U16TEXT | _O_U8TEXT))
                 {
                     orientation_ = 1; // wide
@@ -3065,14 +3214,14 @@ is empty, throws an `Exception`. In case of an I/O error throws
                 orientation_ = fwide(fps, 0);
             }
 
-            FLOCK(fps);
+            _FLOCK(fps);
         }
 
         ~this() @trusted
         {
             if (auto p = file_._p)
             {
-                if (p.handle) FUNLOCK(p.handle);
+                if (p.handle) _FUNLOCK(p.handle);
             }
             file_ = File.init;
                 /* Destroy file_ before possibly throwing. Else it wouldn't be
@@ -3084,7 +3233,7 @@ is empty, throws an `Exception`. In case of an I/O error throws
         {
             if (auto p = file_._p)
             {
-                if (p.handle) FLOCK(p.handle);
+                if (p.handle) _FLOCK(p.handle);
             }
         }
 
@@ -3125,11 +3274,11 @@ is empty, throws an `Exception`. In case of an I/O error throws
             import std.utf : decodeFront, encode, stride;
             static auto trustedFPUTC(int ch, _iobuf* h) @trusted
             {
-                return FPUTC(ch, h);
+                return _FPUTC(ch, h);
             }
-            static auto trustedFPUTWC(Parameters!FPUTWC[0] ch, _iobuf* h) @trusted
+            static auto trustedFPUTWC(Parameters!_FPUTWC[0] ch, _iobuf* h) @trusted
             {
-                return FPUTWC(ch, h);
+                return _FPUTWC(ch, h);
             }
 
             static if (c.sizeof == 1)
@@ -3228,21 +3377,21 @@ is empty, throws an `Exception`. In case of an I/O error throws
                         assert(isValidDchar(c));
                         if (c <= 0xFFFF)
                         {
-                            trustedFPUTWC(c, handle_);
+                            trustedFPUTWC(cast(wchar_t) c, handle_);
                         }
                         else
                         {
-                            trustedFPUTWC(cast(wchar)
+                            trustedFPUTWC(cast(wchar_t)
                                     ((((c - 0x10000) >> 10) & 0x3FF)
                                             + 0xD800), handle_);
-                            trustedFPUTWC(cast(wchar)
+                            trustedFPUTWC(cast(wchar_t)
                                     (((c - 0x10000) & 0x3FF) + 0xDC00),
                                     handle_);
                         }
                     }
                     else version (Posix)
                     {
-                        trustedFPUTWC(c, handle_);
+                        trustedFPUTWC(cast(wchar_t) c, handle_);
                     }
                     else
                     {
@@ -3306,13 +3455,13 @@ is empty, throws an `Exception`. In case of an I/O error throws
             name = f._name;
             FILE* fps = f._p.handle;
             static if (locking)
-                FLOCK(fps);
+                _FLOCK(fps);
 
             version (Windows)
             {
                 .fflush(fps); // before changing translation mode
-                fd = ._fileno(fps);
-                oldMode = ._setmode(fd, _O_BINARY);
+                fd = .fileno(fps);
+                oldMode = .__setmode(fd, _O_BINARY);
                 version (DIGITAL_MARS_STDIO)
                 {
                     import core.atomic : atomicOp;
@@ -3339,10 +3488,10 @@ is empty, throws an `Exception`. In case of an I/O error throws
                     // https://issues.dlang.org/show_bug.cgi?id=4243
                     __fhnd_info[fd] = oldInfo;
                 }
-                ._setmode(fd, oldMode);
+                .__setmode(fd, oldMode);
             }
 
-            FUNLOCK(fps);
+            _FUNLOCK(fps);
         }
 
         void rawWrite(T)(in T[] buffer)
@@ -3368,7 +3517,7 @@ is empty, throws an `Exception`. In case of an I/O error throws
             {
                 if (auto p = file_._p)
                 {
-                    if (p.handle) FLOCK(p.handle);
+                    if (p.handle) _FLOCK(p.handle);
                 }
             }
         }
@@ -3805,7 +3954,7 @@ void main()
         auto f = File(deleteme, "w");
         version (MICROSOFT_STDIO)
         {
-            () @trusted { setmode(fileno(f.getFP()), _O_U8TEXT); } ();
+            () @trusted { __setmode(fileno(f.getFP()), _O_U8TEXT); } ();
         }
         else
         {
@@ -3844,6 +3993,18 @@ void main()
     import std.exception : collectException;
     auto e = collectException({ File f; f.writeln("Hello!"); }());
     assert(e && e.msg == "Attempting to write to closed File");
+}
+
+@safe unittest // https://issues.dlang.org/show_bug.cgi?id=21592
+{
+    import std.exception : collectException;
+    import std.utf : UTFException;
+    static import std.file;
+    auto deleteme = testFilename();
+    scope(exit) std.file.remove(deleteme);
+    auto f = File(deleteme, "w");
+    auto e = collectException!UTFException(f.writeln(wchar(0xD801)));
+    assert(e.next is null);
 }
 
 version (StdStressTest)
@@ -3896,12 +4057,12 @@ struct LockingTextReader
         import std.exception : enforce;
         enforce(f.isOpen, "LockingTextReader: File must be open");
         _f = f;
-        FLOCK(_f._p.handle);
+        _FLOCK(_f._p.handle);
     }
 
     this(this)
     {
-        FLOCK(_f._p.handle);
+        _FLOCK(_f._p.handle);
     }
 
     ~this()
@@ -3910,7 +4071,7 @@ struct LockingTextReader
             ungetc(_front, cast(FILE*)_f._p.handle);
 
         // File locking has its own reference count
-        if (_f.isOpen) FUNLOCK(_f._p.handle);
+        if (_f.isOpen) _FUNLOCK(_f._p.handle);
     }
 
     void opAssign(LockingTextReader r)
@@ -3925,7 +4086,7 @@ struct LockingTextReader
         {
             if (!_f.isOpen || _f.eof)
                 return true;
-            immutable int c = FGETC(cast(_iobuf*) _f._p.handle);
+            immutable int c = _FGETC(cast(_iobuf*) _f._p.handle);
             if (c == EOF)
             {
                 .destroy(_f);
@@ -4760,12 +4921,12 @@ struct lines
         enum duplicate = is(Parms[$ - 1] : immutable(ubyte)[]);
         int result = 1;
         int c = void;
-        FLOCK(f._p.handle);
-        scope(exit) FUNLOCK(f._p.handle);
+        _FLOCK(f._p.handle);
+        scope(exit) _FUNLOCK(f._p.handle);
         ubyte[] buffer;
         static if (Parms.length == 2)
             Parms[0] line = 0;
-        while ((c = FGETC(cast(_iobuf*) f._p.handle)) != -1)
+        while ((c = _FGETC(cast(_iobuf*) f._p.handle)) != -1)
         {
             buffer ~= to!(ubyte)(c);
             if (c == terminator)
@@ -4775,8 +4936,8 @@ struct lines
                 else
                     alias arg = buffer;
                 // unlock the file while calling the delegate
-                FUNLOCK(f._p.handle);
-                scope(exit) FLOCK(f._p.handle);
+                _FUNLOCK(f._p.handle);
+                scope(exit) _FLOCK(f._p.handle);
                 static if (Parms.length == 1)
                 {
                     result = dg(arg);
@@ -4791,7 +4952,7 @@ struct lines
                     buffer.length = 0;
             }
         }
-        // can only reach when FGETC returned -1
+        // can only reach when _FGETC returned -1
         if (!f.eof) throw new StdioException("Error in reading file"); // error occured
         return result;
     }
@@ -4959,6 +5120,9 @@ private struct ChunksImpl
     int opApply(D)(scope D dg)
     {
         import core.stdc.stdlib : alloca;
+        import std.exception : enforce;
+
+        enforce(f.isOpen, "Attempting to read from an unopened file");
         enum maxStackSize = 1024 * 16;
         ubyte[] buffer = void;
         if (size < maxStackSize)
@@ -5024,6 +5188,20 @@ private struct ChunksImpl
     f.close();
 }
 
+// Issue 21730 - null ptr dereferenced in ChunksImpl.opApply (SIGSEGV)
+@system unittest
+{
+    import std.exception : assertThrown;
+    static import std.file;
+
+    auto deleteme = testFilename();
+    scope(exit) { if (std.file.exists(deleteme)) std.file.remove(deleteme); }
+
+    auto err1 = File(deleteme, "w+x");
+    err1.close;
+    std.file.remove(deleteme);
+    assertThrown(() {foreach (ubyte[] buf; chunks(err1, 4096)) {}}());
+}
 
 /**
 Writes an array or range to a file.
@@ -5367,8 +5545,8 @@ private size_t readlnImpl(FILE* fps, ref char[] buf, dchar terminator, File.Orie
 {
     version (DIGITAL_MARS_STDIO)
     {
-        FLOCK(fps);
-        scope(exit) FUNLOCK(fps);
+        _FLOCK(fps);
+        scope(exit) _FUNLOCK(fps);
 
         /* Since fps is now locked, we can create an "unshared" version
          * of fp.
@@ -5383,7 +5561,7 @@ private size_t readlnImpl(FILE* fps, ref char[] buf, dchar terminator, File.Orie
              * Read them and convert to chars.
              */
             static assert(wchar_t.sizeof == 2);
-            for (int c = void; (c = FGETWC(fp)) != -1; )
+            for (int c = void; (c = _FGETWC(fp)) != -1; )
             {
                 if ((c & ~0x7F) == 0)
                 {
@@ -5396,7 +5574,7 @@ private size_t readlnImpl(FILE* fps, ref char[] buf, dchar terminator, File.Orie
                     if (c >= 0xD800 && c <= 0xDBFF)
                     {
                         int c2 = void;
-                        if ((c2 = FGETWC(fp)) != -1 ||
+                        if ((c2 = _FGETWC(fp)) != -1 ||
                                 c2 < 0xDC00 && c2 > 0xDFFF)
                         {
                             StdioException("unpaired UTF-16 surrogate");
@@ -5418,7 +5596,7 @@ private size_t readlnImpl(FILE* fps, ref char[] buf, dchar terminator, File.Orie
              */
         L1:
             int c;
-            while ((c = FGETC(fp)) != -1)
+            while ((c = _FGETC(fp)) != -1)
             {
                 app.putchar(cast(char) c);
                 if (c == terminator)
@@ -5488,8 +5666,8 @@ private size_t readlnImpl(FILE* fps, ref char[] buf, dchar terminator, File.Orie
     }
     else version (MICROSOFT_STDIO)
     {
-        FLOCK(fps);
-        scope(exit) FUNLOCK(fps);
+        _FLOCK(fps);
+        scope(exit) _FUNLOCK(fps);
 
         /* Since fps is now locked, we can create an "unshared" version
          * of fp.
@@ -5500,7 +5678,7 @@ private size_t readlnImpl(FILE* fps, ref char[] buf, dchar terminator, File.Orie
         app.initialize(buf);
 
         int c;
-        while ((c = FGETC(fp)) != -1)
+        while ((c = _FGETC(fp)) != -1)
         {
             app.putchar(cast(char) c);
             if (c == terminator)
@@ -5526,13 +5704,13 @@ private size_t readlnImpl(FILE* fps, ref char[] buf, dchar terminator, File.Orie
             /* Stream is in wide characters.
              * Read them and convert to chars.
              */
-            FLOCK(fps);
-            scope(exit) FUNLOCK(fps);
+            _FLOCK(fps);
+            scope(exit) _FUNLOCK(fps);
             auto fp = cast(_iobuf*) fps;
             version (Windows)
             {
                 buf.length = 0;
-                for (int c = void; (c = FGETWC(fp)) != -1; )
+                for (int c = void; (c = _FGETWC(fp)) != -1; )
                 {
                     if ((c & ~0x7F) == 0)
                     {   buf ~= c;
@@ -5544,7 +5722,7 @@ private size_t readlnImpl(FILE* fps, ref char[] buf, dchar terminator, File.Orie
                         if (c >= 0xD800 && c <= 0xDBFF)
                         {
                             int c2 = void;
-                            if ((c2 = FGETWC(fp)) != -1 ||
+                            if ((c2 = _FGETWC(fp)) != -1 ||
                                     c2 < 0xDC00 && c2 > 0xDFFF)
                             {
                                 StdioException("unpaired UTF-16 surrogate");
@@ -5562,7 +5740,7 @@ private size_t readlnImpl(FILE* fps, ref char[] buf, dchar terminator, File.Orie
             else version (Posix)
             {
                 buf.length = 0;
-                for (int c; (c = FGETWC(fp)) != -1; )
+                for (int c; (c = _FGETWC(fp)) != -1; )
                 {
                     import std.utf : encode;
 
@@ -5620,8 +5798,8 @@ private size_t readlnImpl(FILE* fps, ref char[] buf, dchar terminator, File.Orie
     {
         import core.stdc.wchar_ : fwide;
 
-        FLOCK(fps);
-        scope(exit) FUNLOCK(fps);
+        _FLOCK(fps);
+        scope(exit) _FUNLOCK(fps);
         auto fp = cast(_iobuf*) fps;
         if (orientation == File.Orientation.wide)
         {
@@ -5631,7 +5809,7 @@ private size_t readlnImpl(FILE* fps, ref char[] buf, dchar terminator, File.Orie
             version (Windows)
             {
                 buf.length = 0;
-                for (int c; (c = FGETWC(fp)) != -1; )
+                for (int c; (c = _FGETWC(fp)) != -1; )
                 {
                     if ((c & ~0x7F) == 0)
                     {   buf ~= c;
@@ -5643,7 +5821,7 @@ private size_t readlnImpl(FILE* fps, ref char[] buf, dchar terminator, File.Orie
                         if (c >= 0xD800 && c <= 0xDBFF)
                         {
                             int c2 = void;
-                            if ((c2 = FGETWC(fp)) != -1 ||
+                            if ((c2 = _FGETWC(fp)) != -1 ||
                                     c2 < 0xDC00 && c2 > 0xDFFF)
                             {
                                 StdioException("unpaired UTF-16 surrogate");
@@ -5662,7 +5840,7 @@ private size_t readlnImpl(FILE* fps, ref char[] buf, dchar terminator, File.Orie
             {
                 import std.utf : encode;
                 buf.length = 0;
-                for (int c; (c = FGETWC(fp)) != -1; )
+                for (int c; (c = _FGETWC(fp)) != -1; )
                 {
                     if ((c & ~0x7F) == 0)
                         buf ~= cast(char) c;
@@ -5685,7 +5863,7 @@ private size_t readlnImpl(FILE* fps, ref char[] buf, dchar terminator, File.Orie
         // First, fill the existing buffer
         for (size_t bufPos = 0; bufPos < buf.length; )
         {
-            immutable c = FGETC(fp);
+            immutable c = _FGETC(fp);
             if (c == -1)
             {
                 buf.length = bufPos;
@@ -5700,7 +5878,7 @@ private size_t readlnImpl(FILE* fps, ref char[] buf, dchar terminator, File.Orie
             }
         }
         // Then, append to it
-        for (int c; (c = FGETC(fp)) != -1; )
+        for (int c; (c = _FGETC(fp)) != -1; )
         {
             buf ~= cast(char) c;
             if (c == terminator)
