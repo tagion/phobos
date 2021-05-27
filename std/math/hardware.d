@@ -16,6 +16,8 @@ module std.math.hardware;
 
 static import core.stdc.fenv;
 
+version (LDC) import ldc.attributes;
+
 version (X86)       version = X86_Any;
 version (X86_64)    version = X86_Any;
 version (PPC)       version = PPC_Any;
@@ -33,13 +35,6 @@ version (RISCV64)   version = RISCV_Any;
 
 version (D_InlineAsm_X86)    version = InlineAsm_X86_Any;
 version (D_InlineAsm_X86_64) version = InlineAsm_X86_Any;
-
-version (InlineAsm_X86_Any) version = InlineAsm_X87;
-version (InlineAsm_X87)
-{
-    static assert(real.mant_dig == 64);
-    version (CRuntime_Microsoft) version = InlineAsm_X87_MSVC;
-}
 
 version (X86_64) version = StaticallyHaveSSE;
 version (X86) version (OSX) version = StaticallyHaveSSE;
@@ -131,16 +126,54 @@ private:
         version (InlineAsm_X86_Any)
         {
             ushort sw;
+          version (LDC)
+          {
+            asm pure nothrow @nogc { "fstsw %0" : "=m" (sw); }
+          }
+          else
+          {
             asm pure nothrow @nogc { fstsw sw; }
+          }
 
             // OR the result with the SSE2 status register (MXCSR).
             if (haveSSE)
             {
                 uint mxcsr;
+              version (LDC)
+              {
+                asm pure nothrow @nogc { "stmxcsr %0" : "=m" (mxcsr); }
+              }
+              else
+              {
                 asm pure nothrow @nogc { stmxcsr mxcsr; }
+              }
                 return (sw | mxcsr) & EXCEPTIONS_MASK;
             }
             else return sw & EXCEPTIONS_MASK;
+        }
+        else version (LDC)
+        {
+            version (PPC_Any)
+            {
+                return FloatingPointControl.getControlState();
+            }
+            else version (MIPS_Any)
+            {
+                return FloatingPointControl.getControlState();
+            }
+            else version (AArch64)
+            {
+                uint fpsr;
+                asm pure nothrow @nogc { "mrs %0, FPSR" : "=r" (fpsr); }
+                return fpsr & 0x1F;
+            }
+            else version (ARM)
+            {
+                const fpscr = FloatingPointControl.getControlState();
+                return fpscr & 0x1F;
+            }
+            else
+                assert(0, "Not yet supported");
         }
         else version (SPARC)
         {
@@ -174,18 +207,34 @@ private:
     {
         version (InlineAsm_X86_Any)
         {
+          version (LDC)
+          {
+            asm nothrow @nogc { "fnclex" : : : "fpsw"; }
+          }
+          else
+          {
             asm nothrow @nogc
             {
                 fnclex;
             }
+          }
 
             // Also clear exception flags in MXCSR, SSE's control register.
             if (haveSSE)
             {
                 uint mxcsr;
+              version (LDC)
+              {
+                asm nothrow @nogc { "stmxcsr %0" : "=m" (mxcsr); }
+                mxcsr &= ~EXCEPTIONS_MASK;
+                asm nothrow @nogc { "ldmxcsr %0" : : "m" (mxcsr) : "flags"; }
+              }
+              else
+              {
                 asm nothrow @nogc { stmxcsr mxcsr; }
                 mxcsr &= ~EXCEPTIONS_MASK;
                 asm nothrow @nogc { ldmxcsr mxcsr; }
+              }
             }
         }
         else version (RISCV_Any)
@@ -197,6 +246,47 @@ private:
                 "fsflags %0" : : "r" (newValues);
             }
             `);
+        }
+        else version (LDC)
+        {
+            version (PPC_Any)
+            {
+                asm pure nothrow @nogc
+                {
+                    `mtfsb0 3
+                     mtfsb0 4
+                     mtfsb0 5
+                     mtfsb0 6
+                     mtfsb0 7
+                     mtfsb0 8
+                     mtfsb0 9
+                     mtfsb0 10
+                     mtfsb0 11
+                     mtfsb0 12`;
+                }
+            }
+            else version (MIPS_Any)
+            {
+                version (D_LP64) enum mask = 0xFFFFFF80u;
+                else             enum mask = 0xFF80u;
+
+                const newState = FloatingPointControl.getControlState() & mask;
+                FloatingPointControl.setControlState(newState);
+            }
+            else version (AArch64)
+            {
+                uint fpsr;
+                asm pure nothrow @nogc { "mrs %0, FPSR" : "=r" (fpsr); }
+                fpsr &= ~0x1F;
+                asm pure nothrow @nogc { "msr FPSR, %0" : : "r" (fpsr); }
+            }
+            else version (ARM)
+            {
+                const fpscr = FloatingPointControl.getControlState();
+                FloatingPointControl.setControlState(fpscr & ~0x1F);
+            }
+            else
+                assert(0, "Not yet supported");
         }
         else
         {
@@ -243,6 +333,7 @@ public:
 }
 
 ///
+@optStrategy("none") // LDC
 @safe unittest
 {
     import std.math.traits : isNaN;
@@ -273,6 +364,14 @@ public:
     assert(ieeeFlags == f);
 }
 
+version (LDC)
+{
+    unittest
+    {
+        pragma(msg, "ieeeFlags test disabled, see LDC Issue #888");
+    }
+}
+else
 @safe unittest
 {
     import std.meta : AliasSeq;
@@ -326,6 +425,7 @@ void resetIeeeFlags() @trusted nothrow @nogc
 }
 
 ///
+@optStrategy("none") // LDC, required for the IEEE flags check
 @safe unittest
 {
     pragma(inline, false) static void blockopt(ref real x) {}
@@ -348,6 +448,7 @@ void resetIeeeFlags() @trusted nothrow @nogc
 }
 
 ///
+@optStrategy("none") // LDC, required for the IEEE flags check
 @safe nothrow unittest
 {
     import std.math.traits : isNaN;
@@ -763,7 +864,39 @@ private:
     // Clear all pending exceptions
     static void clearExceptions() @safe
     {
-        version (IeeeFlagsSupport)
+        version (LDC)
+        {
+            version (X86_Any)
+            {
+                resetIeeeFlags();
+            }
+            else version (PPC_Any)
+            {
+                asm pure nothrow @nogc @safe
+                {
+                    `mtfsb0 24
+                     mtfsb0 25
+                     mtfsb0 26
+                     mtfsb0 27
+                     mtfsb0 28`;
+                }
+            }
+            else version (MIPS_Any)
+            {
+                version (D_LP64) enum mask = 0xFFFFF07Fu;
+                else             enum mask = 0xF07Fu;
+
+                const cs = getControlState();
+                setControlState(cs & mask);
+            }
+            else version (ARM_Any)
+            {
+                resetIeeeFlags();
+            }
+            else
+                static assert(false, "Not implemented for this architecture");
+        }
+        else version (IeeeFlagsSupport)
             resetIeeeFlags();
         else
             static assert(false, "Not implemented for this architecture");
@@ -772,7 +905,62 @@ private:
     // Read from the control register
     package(std.math) static ControlState getControlState() @trusted pure
     {
-        version (D_InlineAsm_X86)
+        version (LDC)
+        {
+            ControlState cont;
+
+            version (X86)
+            {
+                asm pure nothrow @nogc
+                {
+                    `xor %%eax, %%eax
+                     fstcw %0`
+                    : "=m" (cont)
+                    :
+                    : "eax";
+                }
+            }
+            else version (X86_64)
+            {
+                asm pure nothrow @nogc
+                {
+                    `xor %%rax, %%rax
+                     fstcw %0`
+                    : "=m" (cont)
+                    :
+                    : "rax";
+                }
+            }
+            else version (PPC_Any)
+            {
+                double fspr;
+                asm pure nothrow @nogc { "mffs %0" : "=f" (fspr); }
+                cont = cast(ControlState) *cast(ulong*) &fspr;
+            }
+            else version (MIPS_Any)
+            {
+                asm pure nothrow @nogc
+                {
+                    `.set noat
+                     cfc1 %0, $31
+                     .set at`
+                    : "=r" (cont);
+                }
+            }
+            else version (AArch64)
+            {
+                asm pure nothrow @nogc { "mrs %0, FPCR" : "=r" (cont); }
+            }
+            else version (ARM)
+            {
+                asm pure nothrow @nogc { "vmrs %0, FPSCR" : "=r" (cont); }
+            }
+            else
+                assert(0, "Not yet supported");
+
+            return cont;
+        }
+        else version (D_InlineAsm_X86)
         {
             short cont;
             asm pure nothrow @nogc
@@ -812,17 +1000,38 @@ private:
     {
         version (InlineAsm_X86_Any)
         {
+          version (LDC)
+          {
+            asm nothrow @nogc
+            {
+                `fclex
+                 fldcw %0`
+                :
+                : "m" (newState)
+                : "fpsw";
+            }
+          }
+          else
+          {
             asm nothrow @nogc
             {
                 fclex;
                 fldcw newState;
             }
+          }
 
             // Also update MXCSR, SSE's control register.
             if (haveSSE)
             {
                 uint mxcsr;
+              version (LDC)
+              {
+                asm nothrow @nogc { "stmxcsr %0" : "=m" (mxcsr); }
+              }
+              else
+              {
                 asm nothrow @nogc { stmxcsr mxcsr; }
+              }
 
                 /* In the FPU control register, rounding mode is in bits 10 and
                 11. In MXCSR it's in bits 13 and 14. */
@@ -834,7 +1043,14 @@ private:
                 mxcsr &= ~(allExceptions << 7);            // delete old masks
                 mxcsr |= (newState & allExceptions) << 7;  // write new exception masks
 
+              version (LDC)
+              {
+                asm nothrow @nogc { "ldmxcsr %0" : : "m" (mxcsr) : "flags"; }
+              }
+              else
+              {
                 asm nothrow @nogc { ldmxcsr mxcsr; }
+              }
             }
         }
         else version (RISCV_Any)
@@ -846,12 +1062,43 @@ private:
             }
             `);
         }
+        else version (LDC)
+        {
+            version (PPC_Any)
+            {
+                ulong tmpState = newState;
+                double fspr = *cast(double*) &tmpState;
+                asm nothrow @nogc { "mtfsf 0x0f, %0" : : "f" (fspr); }
+            }
+            else version (MIPS_Any)
+            {
+                asm nothrow @nogc
+                {
+                    `.set noat
+                     ctc1 %0, $31
+                     .set at`
+                    :
+                    : "r" (newState);
+                }
+            }
+            else version (AArch64)
+            {
+                asm nothrow @nogc { "msr FPCR, %0" : : "r" (newState); }
+            }
+            else version (ARM)
+            {
+                asm nothrow @nogc { "vmsr FPSCR, %0" : : "r" (newState); }
+            }
+            else
+                assert(0, "Not yet supported");
+        }
         else
             assert(0, "Not yet supported");
     }
 }
 
 ///
+@optStrategy("none") // LDC
 @safe unittest
 {
     import std.math.rounding : lrint;
@@ -905,6 +1152,13 @@ private:
     ensureDefaults();
 }
 
+version (LDC)
+{
+    // TODO: most likely issue #888 again, verify
+    // Linux x86_64: debug works, release fails
+    // Win64: debug and release fail
+}
+else
 @safe unittest // rounding
 {
     import std.meta : AliasSeq;

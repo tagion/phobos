@@ -132,16 +132,26 @@ real fabs(real x) @safe pure nothrow @nogc { return core.math.fabs(x); }
 pragma(inline, true)
 double fabs(double d) @trusted pure nothrow @nogc
 {
-    ulong tmp = *cast(ulong*)&d & 0x7FFF_FFFF_FFFF_FFFF;
-    return *cast(double*)&tmp;
+    version (LDC)
+        return core.math.fabs(d);
+    else
+    {
+        ulong tmp = *cast(ulong*)&d & 0x7FFF_FFFF_FFFF_FFFF;
+        return *cast(double*)&tmp;
+    }
 }
 
 ///ditto
 pragma(inline, true)
 float fabs(float f) @trusted pure nothrow @nogc
 {
-    uint tmp = *cast(uint*)&f & 0x7FFF_FFFF;
-    return *cast(float*)&tmp;
+    version (LDC)
+        return core.math.fabs(f);
+    else
+    {
+        uint tmp = *cast(uint*)&f & 0x7FFF_FFFF;
+        return *cast(float*)&tmp;
+    }
 }
 
 ///
@@ -602,9 +612,14 @@ if (isFloatingPoint!T1 && isFloatingPoint!T2)
     return r;
 }
 
+pragma(inline, true) // LDC
 private real polyImpl(real x, in real[] A) @trusted pure nothrow @nogc
 {
-    version (D_InlineAsm_X86)
+    version (LDC)
+    {
+        return polyImplBase(x, A);
+    }
+    else version (D_InlineAsm_X86)
     {
         if (__ctfe)
         {
@@ -954,7 +969,15 @@ if (isFloatingPoint!T)
     assert(truncPow2(ulong.min) == 0);
 
     assert(truncPow2(int.max) == (int.max / 2) + 1);
+  version (LDC)
+  {
+    // this test relies on undefined behaviour, i.e. (1 << 63) == int.min
+    // that fails for LDC with optimizations enabled
+  }
+  else
+  {
     assert(truncPow2(int.min) == int.min);
+  }
     assert(truncPow2(long.max) == (long.max / 2) + 1);
     assert(truncPow2(long.min) == long.min);
 }
