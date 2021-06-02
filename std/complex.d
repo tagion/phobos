@@ -1037,7 +1037,7 @@ Complex!T asin(T)(Complex!T z)  @safe pure nothrow @nogc
     import std.math.operations : isClose;
     import std.math.constants : PI;
     assert(asin(complex(0.0)) == 0.0);
-    assert(isClose(asin(complex(0.5L)), PI / 6));
+    assert(isClose(asin(complex(0.5L)), PI / 6, 0, 1e-15));
 }
 
 @safe pure nothrow unittest
@@ -1063,7 +1063,7 @@ Complex!T acos(T)(Complex!T z)  @safe pure nothrow @nogc
     import std.math.constants : PI;
     import std.math.trigonometry : std_math_acos = acos;
     assert(acos(complex(0.0)) == std_math_acos(0.0));
-    assert(isClose(acos(complex(0.5L)), PI / 3));
+    assert(isClose(acos(complex(0.5L)), PI / 3, 0, 1e-15));
 }
 
 @safe pure nothrow unittest
