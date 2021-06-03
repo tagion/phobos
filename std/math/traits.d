@@ -555,10 +555,13 @@ int signbit(X)(X x) @nogc @trusted pure nothrow
     assert(!signbit(real.max));
 }
 
+version (LDC) version (AArch64) version = LDC_AArch64;
+
 @nogc @safe pure nothrow unittest
 {
     // CTFE
     static assert(!signbit(float.nan));
+    version (LDC_AArch64) { pragma(msg, "signbit(-NaN) CTFE test disabled for AArch64"); } else
     static assert(signbit(-float.nan));
     static assert(!signbit(168.1234f));
     static assert(signbit(-168.1234f));
@@ -568,6 +571,7 @@ int signbit(X)(X x) @nogc @trusted pure nothrow
     static assert(!signbit(float.max));
 
     static assert(!signbit(double.nan));
+    version (LDC_AArch64) { pragma(msg, "signbit(-NaN) CTFE test disabled for AArch64"); } else
     static assert(signbit(-double.nan));
     static assert(!signbit(168.1234));
     static assert(signbit(-168.1234));
@@ -577,6 +581,7 @@ int signbit(X)(X x) @nogc @trusted pure nothrow
     static assert(!signbit(double.max));
 
     static assert(!signbit(real.nan));
+    version (LDC_AArch64) { pragma(msg, "signbit(-NaN) CTFE test disabled for AArch64"); } else
     static assert(signbit(-real.nan));
     static assert(!signbit(168.1234L));
     static assert(signbit(-168.1234L));
