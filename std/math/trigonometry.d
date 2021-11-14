@@ -210,9 +210,9 @@ float tan(float x) @safe pure nothrow @nogc { return __ctfe ? cast(float) tan(ca
     assert(tan(PI / 3).isClose(sqrt(3.0)));
 }
 
-// LDC: pass `real.nan` as extra param and use extern(C++) for non-reversed params
+// LDC: pass `real.nan` as extra param
 version (InlineAsm_X87)
-private extern(C++) real tanAsm(real x, real nan = real.nan) @trusted pure nothrow @nogc
+private real tanAsm(real x, real nan = real.nan) @trusted pure nothrow @nogc
 {
     version (LDC) {} else
     {
@@ -257,7 +257,7 @@ trigerr:
 Clear1:
         fstp    ST(0)                   ; // dump X, which is always 1
 Lret:
-        ret                             ;
+        ret 2 * x.sizeof                ;
     }
     }
     else version (X86_64)
@@ -972,8 +972,8 @@ private real atan2Asm(real y, real x) @trusted pure nothrow @nogc
     {
         asm pure nothrow @nogc {
             naked;
-            fld real ptr [RDX]; // y
-            fld real ptr [RCX]; // x
+            fld real ptr [RCX]; // y
+            fld real ptr [RDX]; // x
             fpatan;
             ret;
         }
