@@ -1875,7 +1875,7 @@ Throws: `Exception` if the file is not opened.
         import std.format : checkFormatException;
 
         alias e = checkFormatException!(fmt, A);
-        static assert(!e, e.msg);
+        static assert(!e, e);
         return this.writef(fmt, args);
     }
 
@@ -1894,7 +1894,7 @@ Throws: `Exception` if the file is not opened.
         import std.format : checkFormatException;
 
         alias e = checkFormatException!(fmt, A);
-        static assert(!e, e.msg);
+        static assert(!e, e);
         return this.writefln(fmt, args);
     }
 
@@ -2243,7 +2243,7 @@ $(CONSOLE
         import std.format : checkFormatException;
 
         alias e = checkFormatException!(format, Data);
-        static assert(!e, e.msg);
+        static assert(!e, e);
         return this.readf(format, data);
     }
 
@@ -4480,7 +4480,7 @@ if (isSomeString!(typeof(fmt)))
     import std.format : checkFormatException;
 
     alias e = checkFormatException!(fmt, A);
-    static assert(!e, e.msg);
+    static assert(!e, e);
     return .writef(fmt, args);
 }
 
@@ -4521,7 +4521,7 @@ if (isSomeString!(typeof(fmt)))
     import std.format : checkFormatException;
 
     alias e = checkFormatException!(fmt, A);
-    static assert(!e, e.msg);
+    static assert(!e, e);
     return .writefln(fmt, args);
 }
 
@@ -4602,7 +4602,7 @@ if (isSomeString!(typeof(format)))
     import std.format : checkFormatException;
 
     alias e = checkFormatException!(format, A);
-    static assert(!e, e.msg);
+    static assert(!e, e);
     return .readf(format, args);
 }
 
