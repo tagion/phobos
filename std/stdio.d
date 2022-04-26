@@ -1550,6 +1550,7 @@ Throws: `Exception` if the file is not opened.
     {
         import core.sys.windows.winbase : OVERLAPPED;
         import core.sys.windows.winnt : BOOL, ULARGE_INTEGER;
+        import std.windows.syserror : wenforce;
 
         private BOOL lockImpl(alias F, Flags...)(ulong start, ulong length,
             Flags flags)
@@ -1565,15 +1566,6 @@ Throws: `Exception` if the file is not opened.
             overlapped.hEvent = null;
             return F(windowsHandle, flags, 0, liLength.LowPart,
                 liLength.HighPart, &overlapped);
-        }
-
-        private static T wenforce(T)(T cond, lazy string str)
-        {
-            import core.sys.windows.winbase : GetLastError;
-            import std.windows.syserror : sysErrorString;
-
-            if (cond) return cond;
-            throw new Exception(str ~ ": " ~ sysErrorString(GetLastError()));
         }
     }
     version (Posix)
