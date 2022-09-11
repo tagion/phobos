@@ -107,7 +107,7 @@ endif
 OUTFILEFLAG = -o
 NODEFAULTLIB=-defaultlib= -debuglib=
 ifeq (,$(findstring win,$(OS)))
-	CFLAGS=$(MODEL_FLAG) -fPIC -DHAVE_UNISTD_H
+	CFLAGS=$(MODEL_FLAG) -fPIC -std=c11 -DHAVE_UNISTD_H
 	NODEFAULTLIB += -L-lpthread -L-lm
 	ifeq ($(BUILD),debug)
 		CFLAGS += -g
@@ -485,7 +485,7 @@ else
 # to always invoke druntime's make. Use FORCE instead of .PHONY to
 # avoid rebuilding phobos when $(DRUNTIME) didn't change.
 $(DRUNTIME): FORCE
-	$(MAKE) -C $(DRUNTIME_PATH) -f posix.mak MODEL=$(MODEL) DMD=$(DMD) OS=$(OS) BUILD=$(BUILD)
+	$(MAKE) -C $(DRUNTIME_PATH) -f posix.mak MODEL=$(MODEL) DMD=$(abspath $(DMD)) OS=$(OS) BUILD=$(BUILD)
 
 ifeq (,$(findstring win,$(OS)))
 $(DRUNTIMESO): $(DRUNTIME)
