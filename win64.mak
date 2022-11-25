@@ -35,7 +35,7 @@ CFLAGS=/O2 /nologo
 
 ## Location of druntime tree
 
-DRUNTIME=../druntime
+DRUNTIME=../dmd/druntime
 DRUNTIMELIB=$(DRUNTIME)/lib/druntime$(MODEL).lib
 
 ## Flags for dmd D compiler
@@ -121,7 +121,6 @@ SRC_STD_3c= \
 	std\typetuple.d \
 	std\traits.d \
 	std\encoding.d \
-	std\xml.d \
 	std\random.d \
 	std\exception.d \
 	std\compiler.d \
@@ -232,7 +231,6 @@ SRC_STD_DIGEST= \
 	std\digest\sha.d \
 	std\digest\md.d \
 	std\digest\ripemd.d \
-	std\digest\digest.d \
 	std\digest\hmac.d \
 	std\digest\murmurhash.d \
 	std\digest\package.d
@@ -264,6 +262,7 @@ SRC_STD_WIN= \
 
 SRC_STD_INTERNAL= \
 	std\internal\cstring.d \
+	std\internal\memory.d \
 	std\internal\unicode_tables.d \
 	std\internal\unicode_comp.d \
 	std\internal\unicode_decomp.d \
@@ -287,7 +286,7 @@ SRC_STD_INTERNAL_WINDOWS= \
 	std\internal\windows\advapi32.d
 
 SRC_STD_EXP= \
-	std\checkedint.d std\experimental\checkedint.d std\experimental\typecons.d
+	std\checkedint.d std\experimental\checkedint.d
 
 SRC_STD_UNI = std\uni\package.d
 
@@ -327,6 +326,13 @@ SRC_STD_EXP_LOGGER= \
 	std\experimental\logger\nulllogger.d \
 	std\experimental\logger\package.d
 
+SRC_STD_LOGGER= \
+	std\logger\core.d \
+	std\logger\filelogger.d \
+	std\logger\multilogger.d \
+	std\logger\nulllogger.d \
+	std\logger\package.d
+
 SRC_ETC=
 
 SRC_ETC_C= \
@@ -360,6 +366,7 @@ SRC_TO_COMPILE= \
 	$(SRC_STD_EXP) \
 	$(SRC_STD_EXP_ALLOC) \
 	$(SRC_STD_EXP_LOGGER) \
+	$(SRC_STD_LOGGER) \
 	$(SRC_ETC) \
 	$(SRC_ETC_C)
 
@@ -446,7 +453,7 @@ unittest : $(LIB)
 	"$(DMD)" $(UDFLAGS) -c  -ofunittest6g.obj $(SRC_STD_CONTAINER)
 	"$(DMD)" $(UDFLAGS) -c  -ofunittest6h.obj $(SRC_STD_6h)
 	"$(DMD)" $(UDFLAGS) -c  -ofunittest6i.obj $(SRC_STD_6i)
-	"$(DMD)" $(UDFLAGS) -c  -ofunittest7.obj $(SRC_STD_7) $(SRC_STD_EXP_LOGGER)
+	"$(DMD)" $(UDFLAGS) -c  -ofunittest7.obj $(SRC_STD_7) $(SRC_STD_LOGGER)
 	"$(DMD)" $(UDFLAGS) -c  -ofunittest7a.obj $(SRC_STD_7a)
 	"$(DMD)" $(UDFLAGS) -c  -ofunittest8a.obj $(SRC_STD_REGEX)
 	"$(DMD)" $(UDFLAGS) -c  -ofunittest8b.obj $(SRC_STD_NET)

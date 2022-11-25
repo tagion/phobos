@@ -38,7 +38,7 @@ CFLAGS=-mn -6 -r
 
 ## Location of druntime tree
 
-DRUNTIME=../druntime
+DRUNTIME=../dmd/druntime
 DRUNTIMELIB=$(DRUNTIME)/lib/druntime.lib
 
 ## Flags for dmd D compiler
@@ -132,7 +132,6 @@ SRC_STD_3a= \
 	std\typetuple.d \
 	std\traits.d \
 	std\encoding.d \
-	std\xml.d \
 	std\random.d \
 	std\exception.d \
 	std\compiler.d \
@@ -203,7 +202,6 @@ SRC_STD_DIGEST= \
 	std\digest\sha.d \
 	std\digest\md.d \
 	std\digest\ripemd.d \
-	std\digest\digest.d \
 	std\digest\hmac.d \
 	std\digest\murmurhash.d \
 	std\digest\package.d
@@ -256,6 +254,7 @@ SRC_STD_WIN= \
 
 SRC_STD_INTERNAL= \
 	std\internal\cstring.d \
+	std\internal\memory.d \
 	std\internal\unicode_tables.d \
 	std\internal\unicode_comp.d \
 	std\internal\unicode_decomp.d \
@@ -279,7 +278,7 @@ SRC_STD_INTERNAL_WINDOWS= \
 	std\internal\windows\advapi32.d
 
 SRC_STD_EXP= \
-	std\checkedint.d std\experimental\checkedint.d std\experimental\typecons.d
+	std\checkedint.d std\experimental\checkedint.d
 
 SRC_STD_UNI = std\uni\package.d \
 
@@ -319,6 +318,13 @@ SRC_STD_EXP_LOGGER= \
 	std\experimental\logger\nulllogger.d \
 	std\experimental\logger\package.d
 
+SRC_STD_LOGGER= \
+	std\logger\core.d \
+	std\logger\filelogger.d \
+	std\logger\multilogger.d \
+	std\logger\nulllogger.d \
+	std\logger\package.d
+
 SRC_ETC=
 
 SRC_ETC_C= \
@@ -352,6 +358,7 @@ SRC_TO_COMPILE= \
 	$(SRC_STD_UNI) \
 	$(SRC_STD_EXP_ALLOC) \
 	$(SRC_STD_EXP_LOGGER) \
+	$(SRC_STD_LOGGER) \
 	$(SRC_ETC) \
 	$(SRC_ETC_C)
 
@@ -424,7 +431,7 @@ unittest : $(LIB)
 	$(DMD) $(UDFLAGS) -L/co -c  -ofunittest5b.obj $(SRC_STD_MATH)
 	$(DMD) $(UDFLAGS) -L/co -c  -ofunittest6.obj $(SRC_STD_6) $(SRC_STD_CONTAINER)
 	$(DMD) $(UDFLAGS) -L/co -c  -ofunittest6a.obj $(SRC_STD_EXP_ALLOC)
-	$(DMD) $(UDFLAGS) -L/co -c  -ofunittest6b.obj $(SRC_STD_EXP_LOGGER)
+	$(DMD) $(UDFLAGS) -L/co -c  -ofunittest6b.obj $(SRC_STD_LOGGER)
 	$(DMD) $(UDFLAGS) -L/co -c  -ofunittest7.obj $(SRC_STD_7)
 	$(DMD) $(UDFLAGS) -L/co -c  -ofunittest7a.obj $(SRC_STD_7a)
 	$(DMD) $(UDFLAGS) -L/co -c  -ofunittest8a.obj $(SRC_STD_REGEX)
@@ -476,7 +483,6 @@ cov : $(SRC_TO_COMPILE) $(LIB)
 	$(DMD) -conf= -cov=ctfe -cov=100 $(UDFLAGS) -main -run std\typetuple.d
 	$(DMD) -conf= -cov=ctfe -cov=85 $(UDFLAGS) -main -run std\traits.d
 	$(DMD) -conf= -cov=ctfe -cov=62 $(UDFLAGS) -main -run std\encoding.d
-	$(DMD) -conf= -cov=ctfe -cov=61 $(UDFLAGS) -main -run std\xml.d
 	$(DMD) -conf= -cov=ctfe -cov=79 $(UDFLAGS) -main -run std\random.d
 	$(DMD) -conf= -cov=ctfe -cov=92 $(UDFLAGS) -main -run std\exception.d
 	$(DMD) -conf= -cov=ctfe -cov=73 $(UDFLAGS) -main -run std\concurrency.d
@@ -491,7 +497,6 @@ cov : $(SRC_TO_COMPILE) $(LIB)
 	$(DMD) -conf= -cov=ctfe -cov=55 $(UDFLAGS) -main -run std\digest\sha.d
 	$(DMD) -conf= -cov=ctfe -cov=100 $(UDFLAGS) -main -run std\digest\md.d
 	$(DMD) -conf= -cov=ctfe -cov=100 $(UDFLAGS) -main -run std\digest\ripemd.d
-	$(DMD) -conf= -cov=ctfe -cov=75 $(UDFLAGS) -main -run std\digest\digest.d
 	$(DMD) -conf= -cov=ctfe -cov=100 $(UDFLAGS) -main -run std\digest\hmac.d
 	$(DMD) -conf= -cov=ctfe -cov=95 $(UDFLAGS) -main -run std\algorithm\package.d
 	$(DMD) -conf= -cov=ctfe -cov=95 $(UDFLAGS) -main -run std\algorithm\comparison.d
