@@ -333,6 +333,34 @@ public:
 }
 
 ///
+version (StdDdoc)
+@safe unittest
+{
+    import std.math.traits : isNaN;
+
+    static void func() {
+        int a = 10 * 10;
+    }
+    real a = 3.5;
+    // Set all the flags to zero
+    resetIeeeFlags();
+    assert(!ieeeFlags.divByZero);
+    // Perform a division by zero.
+    a /= 0.0L;
+    assert(a == real.infinity);
+    assert(ieeeFlags.divByZero);
+    // Create a NaN
+    a *= 0.0L;
+    assert(ieeeFlags.invalid);
+    assert(isNaN(a));
+
+    // Check that calling func() has no effect on the
+    // status flags.
+    IeeeFlags f = ieeeFlags;
+    func();
+    assert(ieeeFlags == f);
+}
+
 @optStrategy("none") // LDC
 @safe unittest
 {
@@ -341,19 +369,16 @@ public:
     static void func() {
         int a = 10 * 10;
     }
-    pragma(inline, false) static void blockopt(ref real x) {}
     real a = 3.5;
     // Set all the flags to zero
     resetIeeeFlags();
     assert(!ieeeFlags.divByZero);
-    blockopt(a); // avoid constant propagation by the optimizer
     // Perform a division by zero.
-    a /= 0.0L;
+    a = forceDivOp(a, 0.0L);
     assert(a == real.infinity);
     assert(ieeeFlags.divByZero);
-    blockopt(a); // avoid constant propagation by the optimizer
     // Create a NaN
-    a *= 0.0L;
+    a = forceMulOp(a, 0.0L);
     assert(ieeeFlags.invalid);
     assert(isNaN(a));
 
@@ -384,27 +409,26 @@ else
 
     static foreach (T; AliasSeq!(float, double, real))
     {{
-        T x; /* Needs to be here to trick -O. It would optimize away the
-            calculations if x were local to the function literals. */
+        T x; // Needs to be here to avoid `call without side effects` warning.
         auto tests = [
             Test(
-                () { x = 1; x += 0.1L; },
+                () { x = forceAddOp!T(1, 0.1L); },
                 () => ieeeFlags.inexact
             ),
             Test(
-                () { x = T.min_normal; x /= T.max; },
+                () { x = forceDivOp!T(T.min_normal, T.max); },
                 () => ieeeFlags.underflow
             ),
             Test(
-                () { x = T.max; x += T.max; },
+                () { x = forceAddOp!T(T.max, T.max); },
                 () => ieeeFlags.overflow
             ),
             Test(
-                () { x = 1; x /= 0; },
+                () { x = forceDivOp!T(1, 0); },
                 () => ieeeFlags.divByZero
             ),
             Test(
-                () { x = 0; x /= 0; },
+                () { x = forceDivOp!T(0, 0); },
                 () => ieeeFlags.invalid
             )
         ];
@@ -425,15 +449,25 @@ void resetIeeeFlags() @trusted nothrow @nogc
 }
 
 ///
+version (StdDdoc)
+@safe unittest
+{
+    resetIeeeFlags();
+    real a = 3.5;
+    a /= 0.0L;
+    assert(a == real.infinity);
+    assert(ieeeFlags.divByZero);
+
+    resetIeeeFlags();
+    assert(!ieeeFlags.divByZero);
+}
+
 @optStrategy("none") // LDC, required for the IEEE flags check
 @safe unittest
 {
-    pragma(inline, false) static void blockopt(ref real x) {}
     resetIeeeFlags();
     real a = 3.5;
-    blockopt(a); // avoid constant propagation by the optimizer
-    a /= 0.0L;
-    blockopt(a); // avoid constant propagation by the optimizer
+    a = forceDivOp(a, 0.0L);
     assert(a == real.infinity);
     assert(ieeeFlags.divByZero);
 
@@ -448,22 +482,36 @@ void resetIeeeFlags() @trusted nothrow @nogc
 }
 
 ///
+version (StdDdoc)
+@safe nothrow unittest
+{
+    import std.math.traits : isNaN;
+
+    resetIeeeFlags();
+    real a = 3.5;
+
+    a /= 0.0L;
+    assert(a == real.infinity);
+    assert(ieeeFlags.divByZero);
+
+    a *= 0.0L;
+    assert(isNaN(a));
+    assert(ieeeFlags.invalid);
+}
+
 @optStrategy("none") // LDC, required for the IEEE flags check
 @safe nothrow unittest
 {
     import std.math.traits : isNaN;
 
-    pragma(inline, false) static void blockopt(ref real x) {}
     resetIeeeFlags();
     real a = 3.5;
-    blockopt(a); // avoid constant propagation by the optimizer
 
-    a /= 0.0L;
+    a = forceDivOp(a, 0.0L);
     assert(a == real.infinity);
     assert(ieeeFlags.divByZero);
-    blockopt(a); // avoid constant propagation by the optimizer
 
-    a *= 0.0L;
+    a = forceMulOp(a, 0.0L);
     assert(isNaN(a));
     assert(ieeeFlags.invalid);
 }
@@ -1165,25 +1213,21 @@ else
 
     static T addRound(T)(uint rm)
     {
-        pragma(inline, false) static void blockopt(ref T x) {}
         pragma(inline, false);
         FloatingPointControl fpctrl;
         fpctrl.rounding = rm;
         T x = 1;
-        blockopt(x); // avoid constant propagation by the optimizer
-        x += 0.1L;
+        x = forceAddOp(x, 0.1L);
         return x;
     }
 
     static T subRound(T)(uint rm)
     {
-        pragma(inline, false) static void blockopt(ref T x) {}
         pragma(inline, false);
         FloatingPointControl fpctrl;
         fpctrl.rounding = rm;
         T x = -1;
-        blockopt(x); // avoid constant propagation by the optimizer
-        x -= 0.1L;
+        x = forceSubOp(x, 0.1L);
         return x;
     }
 
@@ -1214,4 +1258,16 @@ else
     }}
 }
 
+} // FloatingPointControlSupport
+
+version (StdUnittest)
+{
+    // These helpers are intended to avoid constant propagation by the optimizer.
+    pragma(inline, false) private @safe
+    {
+        T forceAddOp(T)(T x, T y) { return x + y; }
+        T forceSubOp(T)(T x, T y) { return x - y; }
+        T forceMulOp(T)(T x, T y) { return x * y; }
+        T forceDivOp(T)(T x, T y) { return x / y; }
+    }
 }
