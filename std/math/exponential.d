@@ -3155,16 +3155,6 @@ private
  *    $(TR $(TD +$(INFIN))    $(TD +$(INFIN)) $(TD no)           $(TD no))
  *    )
  */
-version (LDC)
-{
-    pragma(inline, true):
-    real   log(real   x) @safe pure nothrow @nogc { return llvm_log(x); }
-    double log(double x) @safe pure nothrow @nogc { return llvm_log(x); }
-    float  log(float  x) @safe pure nothrow @nogc { return llvm_log(x); }
-}
-else
-{
-
 pragma(inline, true)
 real log(real x) @safe pure nothrow @nogc
 {
@@ -3184,8 +3174,6 @@ double log(double x) @safe pure nothrow @nogc { return __ctfe ? cast(double) log
 /// ditto
 pragma(inline, true)
 float log(float x) @safe pure nothrow @nogc { return __ctfe ? cast(float) log(cast(real) x) : logImpl(x); }
-
-} // !LDC
 
 // @@@DEPRECATED_[2.112.0]@@@
 deprecated("`std.math.exponential.log` called with argument types `(int)` matches both "
@@ -3329,16 +3317,6 @@ private T logImpl(T)(T x) @safe pure nothrow @nogc
  *      $(TR $(TD +$(INFIN))    $(TD +$(INFIN)) $(TD no)           $(TD no))
  *      )
  */
-version (LDC)
-{
-    pragma(inline, true):
-    real   log10(real   x) @safe pure nothrow @nogc { return llvm_log10(x); }
-    double log10(double x) @safe pure nothrow @nogc { return llvm_log10(x); }
-    float  log10(float  x) @safe pure nothrow @nogc { return llvm_log10(x); }
-}
-else
-{
-
 pragma(inline, true)
 real log10(real x) @safe pure nothrow @nogc
 {
@@ -3358,8 +3336,6 @@ double log10(double x) @safe pure nothrow @nogc { return __ctfe ? cast(double) l
 /// ditto
 pragma(inline, true)
 float log10(float x) @safe pure nothrow @nogc { return __ctfe ? cast(float) log10(cast(real) x) : log10Impl(x); }
-
-} // !LDC
 
 // @@@DEPRECATED_[2.112.0]@@@
 deprecated("`std.math.exponential.log10` called with argument types `(int)` matches both "
@@ -3591,16 +3567,6 @@ private T log1pImpl(T)(T x) @safe pure nothrow @nogc
  *  $(TR $(TD +$(INFIN))    $(TD +$(INFIN)) $(TD no)           $(TD no) )
  *  )
  */
-version (LDC)
-{
-    pragma(inline, true):
-    real   log2(real   x) @safe pure nothrow @nogc { return llvm_log2(x); }
-    double log2(double x) @safe pure nothrow @nogc { return llvm_log2(x); }
-    float  log2(float  x) @safe pure nothrow @nogc { return llvm_log2(x); }
-}
-else
-{
-
 pragma(inline, true)
 real log2(real x) @safe pure nothrow @nogc
 {
@@ -3617,8 +3583,6 @@ double log2(double x) @safe pure nothrow @nogc { return __ctfe ? cast(double) lo
 /// ditto
 pragma(inline, true)
 float log2(float x) @safe pure nothrow @nogc { return __ctfe ? cast(float) log2(cast(real) x) : log2Impl(x); }
-
-} // !LDC
 
 // @@@DEPRECATED_[2.112.0]@@@
 deprecated("`std.math.exponential.log2` called with argument types `(int)` matches both "
