@@ -172,6 +172,12 @@ private:
                 const fpscr = FloatingPointControl.getControlState();
                 return fpscr & 0x1F;
             }
+            else version (RISCV_Any)
+            {
+                uint result;
+                asm pure nothrow @nogc { "frflags %0" : "=r" (result); }
+                return result;
+            }
             else
                 assert(0, "Not yet supported");
         }
@@ -1002,6 +1008,10 @@ private:
             else version (ARM)
             {
                 asm pure nothrow @nogc { "vmrs %0, FPSCR" : "=r" (cont); }
+            }
+            else version (RISCV_Any)
+            {
+                asm pure nothrow @nogc { "frcsr %0" : "=r" (cont); }
             }
             else
                 assert(0, "Not yet supported");
