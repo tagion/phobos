@@ -1,6 +1,6 @@
-Better static assert messages for `std.algorithm.comparison.clamp`
+Better static assert messages for `std.algorithm.iteration.permutations`
 
-Until now, `clamp` used a template constraint to check if the passed types
+Until now, `permutations` used a template constraint to check if the passed types
 could be used. If they were not, it was very tedious to figure out why.
 
 As the template constraint is not used for overload resolution

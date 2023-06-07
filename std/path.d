@@ -2745,7 +2745,7 @@ else version (Posix)
     See_Also:
         $(LREF asAbsolutePath) which does not allocate
 */
-string absolutePath(string path, lazy string base = getcwd())
+string absolutePath(return scope const string path, lazy string base = getcwd())
     @safe pure
 {
     import std.array : array;
@@ -2790,6 +2790,19 @@ string absolutePath(string path, lazy string base = getcwd())
 
     import std.exception;
     assertThrown(absolutePath("bar", "foo"));
+}
+
+// Ensure that we can call absolute path with scope paramaters
+@safe unittest
+{
+    string testAbsPath(scope const string path, scope const string base) {
+        return absolutePath(path, base);
+    }
+
+    version (Posix)
+        assert(testAbsPath("some/file", "/foo/bar")  == "/foo/bar/some/file");
+    version (Windows)
+        assert(testAbsPath(`some\file`, `c:\foo\bar`)    == `c:\foo\bar\some\file`);
 }
 
 /** Transforms `path` into an absolute path.
@@ -3955,7 +3968,7 @@ if (isConvertibleToString!Range)
     }
     -----
 */
-string expandTilde(string inputPath) @safe nothrow
+string expandTilde(return scope const string inputPath) @safe nothrow
 {
     version (Posix)
     {
@@ -4138,7 +4151,7 @@ string expandTilde(string inputPath) @safe nothrow
 }
 
 ///
-@system unittest
+@safe unittest
 {
     version (Posix)
     {
@@ -4153,7 +4166,7 @@ string expandTilde(string inputPath) @safe nothrow
     }
 }
 
-@system unittest
+@safe unittest
 {
     version (Posix)
     {
@@ -4204,6 +4217,26 @@ string expandTilde(string inputPath) @safe nothrow
         assert(expandTilde("~Idontexist/hey") == "~Idontexist/hey");
     }
 }
+
+@safe unittest
+{
+    version (Posix)
+    {
+        import std.process : environment;
+
+        string testPath(scope const string source_path) {
+            return source_path.expandTilde;
+        }
+
+        auto oldHome = environment["HOME"];
+        scope(exit) environment["HOME"] = oldHome;
+
+        environment["HOME"] = "dmd/test";
+        assert(testPath("~/") == "dmd/test/");
+        assert(testPath("~") == "dmd/test");
+    }
+}
+
 
 version (StdUnittest)
 {
