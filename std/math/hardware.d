@@ -926,7 +926,7 @@ private:
             }
             else version (PPC_Any)
             {
-                asm pure nothrow @nogc @safe
+                asm pure nothrow @nogc @trusted
                 {
                     `mtfsb0 24
                      mtfsb0 25
