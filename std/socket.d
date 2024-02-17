@@ -101,6 +101,10 @@ else version (Posix)
         return errno;
     }
 }
+else version (WASI)
+{
+    private int _lasterr() nothrow @nogc;
+}
 else
 {
     static assert(0, "No socket support for this platform yet.");

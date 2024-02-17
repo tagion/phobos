@@ -159,6 +159,10 @@ version (Posix)
 {
     static import core.sys.posix.stdio; // getdelim, flockfile
 }
+else version (WASI)
+{
+    static import core.sys.wasi.stdio;
+}
 
 version (DIGITAL_MARS_STDIO)
 {
