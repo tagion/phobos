@@ -2955,6 +2955,140 @@ Rebindable!T rebindable(T)(Rebindable!T obj)
     assert(rebindable(pr3341_aa)[321] == 543);
 }
 
+package(std) struct Rebindable2(T)
+{
+private:
+    static if (isAssignable!(typeof(cast() T.init)))
+    {
+        enum useQualifierCast = true;
+
+        typeof(cast() T.init) data;
+    }
+    else
+    {
+        enum useQualifierCast = false;
+
+        align(T.alignof)
+        static struct Payload
+        {
+            static if (hasIndirections!T)
+            {
+                void[T.sizeof] data;
+            }
+            else
+            {
+                ubyte[T.sizeof] data;
+            }
+        }
+
+        Payload data;
+    }
+
+public:
+
+    static if (!__traits(compiles, { T value; }))
+    {
+        @disable this();
+    }
+
+    /**
+     * Constructs a `Rebindable2` from a given value.
+     */
+    this(T value) @trusted
+    {
+        static if (useQualifierCast)
+        {
+            this.data = cast() value;
+        }
+        else
+        {
+            set(value);
+        }
+    }
+
+    /**
+     * Overwrites the currently stored value with `value`.
+     */
+    void opAssign(this This)(T value) @trusted
+    {
+        clear;
+        set(value);
+    }
+
+    /**
+     * Returns the value currently stored in the `Rebindable2`.
+     */
+    T get(this This)() @property @trusted
+    {
+        static if (useQualifierCast)
+        {
+            return cast(T) this.data;
+        }
+        else
+        {
+            return *cast(T*) &this.data;
+        }
+    }
+
+    /// Ditto
+    inout(T) get() inout @property @trusted
+    {
+        static if (useQualifierCast)
+        {
+            return cast(inout(T)) this.data;
+        }
+        else
+        {
+            return *cast(inout(T)*) &this.data;
+        }
+    }
+
+    static if (!useQualifierCast)
+    {
+        ~this() @trusted
+        {
+            clear;
+        }
+    }
+
+private:
+
+    void set(this This)(T value)
+    {
+        static if (useQualifierCast)
+        {
+            this.data = cast() value;
+        }
+        else
+        {
+            // As we're escaping a copy of `value`, deliberately leak a copy:
+            static union DontCallDestructor
+            {
+                T value;
+            }
+            DontCallDestructor copy = DontCallDestructor(value);
+            this.data = *cast(Payload*) &copy;
+        }
+    }
+
+    void clear(this This)()
+    {
+        // work around reinterpreting cast being impossible in CTFE
+        if (__ctfe)
+        {
+            return;
+        }
+
+        // call possible struct destructors
+        .destroy!(No.initialize)(*cast(T*) &this.data);
+    }
+}
+
+package(std) Rebindable2!T rebindable2(T)(T value)
+{
+    return Rebindable2!T(value);
+}
+
 /**
     Similar to `Rebindable!(T)` but strips all qualifiers from the reference as
     opposed to just constness / immutability. Primary intended use case is with
@@ -3122,11 +3256,19 @@ struct Nullable(T)
      * Params:
      *     value = The value to initialize this `Nullable` with.
      */
-    this(inout T value) inout
-    {
-        _value.payload = value;
-        _isNull = false;
-    }
+    static if (isCopyable!T)
+        this(inout T value) inout
+        {
+            _value.payload = value;
+            _isNull = false;
+        }
+    else
+        this(T value) inout
+        {
+            import std.algorithm.mutation : move;
+            _value.payload = move(value);
+            _isNull = false;
+        }
 
     static if (hasElaborateDestructor!T)
     {
@@ -3139,6 +3281,9 @@ struct Nullable(T)
         }
     }
 
+    static if (!isCopyable!T)
+        @disable this(this);
+    else
     static if (__traits(hasPostblit, T))
     {
         this(this)
@@ -3377,22 +3522,18 @@ struct Nullable(T)
      * Params:
      *     value = A value of type `T` to assign to this `Nullable`.
      */
-    Nullable opAssign()(T value)
+    ref Nullable opAssign()(T value) return
     {
         import std.algorithm.mutation : moveEmplace, move;
-
-        // the lifetime of the value in copy shall be managed by
-        // this Nullable, so we must avoid calling its destructor.
-        auto copy = DontCallDestructorT(value);
 
         if (_isNull)
         {
             // trusted since payload is known to be uninitialized.
-            () @trusted { moveEmplace(copy.payload, _value.payload); }();
+            () @trusted { moveEmplace(value, _value.payload); }();
         }
         else
         {
-            move(copy.payload, _value.payload);
+            move(value, _value.payload);
         }
         _isNull = false;
         return this;
@@ -3470,12 +3611,14 @@ struct Nullable(T)
     alias back = front;
 
     /// ditto
+    static if (isCopyable!T)
     @property inout(typeof(this)) save() inout
     {
         return this;
     }
 
     /// ditto
+    static if (isCopyable!T)
     inout(typeof(this)) opIndex(size_t[2] dim) inout
     in (dim[0] <= length && dim[1] <= length && dim[1] >= dim[0])
     {
@@ -3954,16 +4097,12 @@ auto nullable(T)(T t)
 
     struct Test
     {
-        bool b;
-
-        nothrow invariant { assert(b == true); }
-
         SysTime _st;
 
         static bool destroyed;
 
         @disable this();
-        this(bool b) { this.b = b; }
+        this(int _dummy) {}
         ~this() @safe { destroyed = true; }
 
         // mustn't call opAssign on Test.init in Nullable!Test, because the invariant
@@ -3975,7 +4114,7 @@ auto nullable(T)(T t)
     {
         Nullable!Test nt;
 
-        nt = Test(true);
+        nt = Test(1);
 
         // destroy value
         Test.destroyed = false;
@@ -10540,6 +10679,21 @@ unittest
     assert(s1.get().b == 2);
     Nullable!S s2 = s1;
     assert(s2.get().b == 3);
+}
+
+// https://issues.dlang.org/show_bug.cgi?id=24318
+@system unittest
+{
+    static struct S
+    {
+        @disable this(this);
+        int i;
+    }
+
+    Nullable!S s = S(1);
+    assert(s.get().i == 1);
+    s = S(2);
+    assert(s.get().i == 2);
 }
 
 /// The old version of $(LREF SafeRefCounted), before $(LREF borrow) existed.

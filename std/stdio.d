@@ -34,8 +34,16 @@ $(TR $(TD Misc) $(TD
 ))
 ))
 
-Standard I/O functions that extend $(B core.stdc.stdio).  $(B core.stdc.stdio)
+Standard I/O functions that extend $(LINK2 https://dlang.org/phobos/core_stdc_stdio.html, core.stdc.stdio).  $(B core.stdc.stdio)
 is $(D_PARAM public)ally imported when importing $(B std.stdio).
+
+There are three layers of I/O:
+$(OL
+$(LI The lowest layer is the operating system layer. The two main schemes are Windows and Posix.)
+$(LI C's $(TT stdio.h) which unifies the two operating system schemes.)
+$(LI $(TT std.stdio), this module, unifies the various $(TT stdio.h) implementations into
+a high level package for D programs.)
+)
 
 Source: $(PHOBOSSRC std/stdio.d)
 Copyright: Copyright The D Language Foundation 2007-.
@@ -47,6 +55,55 @@ Macros:
 CSTDIO=$(HTTP cplusplus.com/reference/cstdio/$1/, $1)
  */
 module std.stdio;
+
+/*
+# Glossary
+
+The three layers have many terms for their data structures and types.
+Here we try to bring some sanity to them for the intrepid code spelunker.
+
+## Windows
+
+Handle
+
+        A Windows handle is an opaque object of type HANDLE.
+        The `HANDLE` for standard devices can be retrieved with
+        Windows `GetStdHandle()`.
+
+## Posix
+
+file descriptor, aka fileno, aka fildes
+
+        An int from 0..`FOPEN_MAX`, which is an index into some internal data
+        structure.
+        0 is for `stdin`, 1 for `stdout`, 2 for `stderr`.
+        Negative values usually indicate an error.
+
+## stdio.h
+
+`FILE`
+
+        A struct that encapsulates the C library's view of the operating system
+        files. A `FILE` should only be referred to via a pointer.
+
+`fileno`
+
+        A field of `FILE` which is the Posix file descriptor for Posix systems, and
+        and an index into an array of file `HANDLE`s for Windows.
+        This array is how Posix behavior is emulated on Windows.
+        For Digital Mars C, that array is `__osfhnd[]`, and is initialized
+        at program start by the C runtime library.
+        In this module, they are typed as `fileno_t`.
+
+`stdin`, `stdout`, `stderr`
+
+        Global pointers to `FILE` representing standard input, output, and error streams.
+        Being global means there are synchronization issues when multiple threads
+        are doing I/O on the same streams.
+
+## std.stdio
+
+*/
 
 import core.stdc.stddef : wchar_t;
 public import core.stdc.stdio;
@@ -65,17 +122,12 @@ alias KeepTerminator = Flag!"keepTerminator";
 
 version (CRuntime_Microsoft)
 {
-    version = MICROSOFT_STDIO;
 }
 else version (CRuntime_DigitalMars)
 {
-    // Specific to the way Digital Mars C does stdio
-    version = DIGITAL_MARS_STDIO;
 }
 else version (CRuntime_Glibc)
 {
-    // Specific to the way Gnu C does stdio
-    version = GCC_IO;
 }
 else version (CRuntime_Bionic)
 {
@@ -129,6 +181,10 @@ else version (Solaris)
 {
     version = GENERIC_IO;
 }
+else
+{
+    static assert(0, "unsupported operating system");
+}
 
 // Character type used for operating system filesystem APIs
 version (Windows)
@@ -140,6 +196,7 @@ else
     private alias FSChar = char;
 }
 
+private alias fileno_t = int;   // file descriptor, fildes, fileno
 
 version (Windows)
 {
@@ -158,7 +215,7 @@ version (Posix)
     static import core.sys.posix.stdio; // getdelim, flockfile
 }
 
-version (DIGITAL_MARS_STDIO)
+version (CRuntime_DigitalMars)
 {
     private alias _FPUTC = _fputc_nlock;
     private alias _FPUTWC = _fputwc_nlock;
@@ -167,7 +224,7 @@ version (DIGITAL_MARS_STDIO)
     private alias _FLOCK = __fp_lock;
     private alias _FUNLOCK = __fp_unlock;
 
-    // Alias for MICROSOFT_STDIO compatibility.
+    // Alias for CRuntime_Microsoft compatibility.
     // @@@DEPRECATED_2.107@@@
     // Rename this back to _setmode once the deprecation phase has ended.
     private alias __setmode = setmode;
@@ -203,9 +260,9 @@ version (DIGITAL_MARS_STDIO)
     // @@@DEPRECATED_2.107@@@
     deprecated("internal function _fileno was unintentionally available from "
                ~ "std.stdio and will be removed afer 2.107")
-    int _fileno(FILE* f) { return f._file; }
+    fileno_t _fileno(FILE* f) { return f._file; }
 }
-else version (MICROSOFT_STDIO)
+else version (CRuntime_Microsoft)
 {
     private alias _FPUTC = _fputc_nolock;
     private alias _FPUTWC = _fputwc_nolock;
@@ -215,7 +272,7 @@ else version (MICROSOFT_STDIO)
     private alias _FUNLOCK = _unlock_file;
 
     // @@@DEPRECATED_2.107@@@
-    // Remove this once the deprecation phase for DIGITAL_MARS_STDIO has ended.
+    // Remove this once the deprecation phase for CRuntime_DigitalMars has ended.
     private alias __setmode = _setmode;
 
     // @@@DEPRECATED_2.107@@@
@@ -243,7 +300,7 @@ else version (MICROSOFT_STDIO)
                ~ "std.stdio and will be removed afer 2.107")
     alias FUNLOCK = _unlock_file;
 }
-else version (GCC_IO)
+else version (CRuntime_Glibc)
 {
     private alias _FPUTC = fputc_unlocked;
     private alias _FPUTWC = fputwc_unlocked;
@@ -357,25 +414,10 @@ private extern (C) @nogc nothrow
 {
     pragma(mangle, _FPUTC.mangleof) int trustedFPUTC(int ch, _iobuf* h) @trusted;
 
-    version (DIGITAL_MARS_STDIO)
+    version (CRuntime_DigitalMars)
         pragma(mangle, _FPUTWC.mangleof) int trustedFPUTWC(int ch, _iobuf* h) @trusted;
     else
         pragma(mangle, _FPUTWC.mangleof) int trustedFPUTWC(wchar_t ch, _iobuf* h) @trusted;
-}
-
-static if (__traits(compiles, core.sys.posix.stdio.getdelim))
-{
-    extern(C) nothrow @nogc
-    {
-        // @@@DEPRECATED_2.104@@@
-        deprecated("To be removed after 2.104. Use core.sys.posix.stdio.getdelim instead.")
-        ptrdiff_t getdelim(char**, size_t*, int, FILE*);
-
-        // @@@DEPRECATED_2.104@@@
-        // getline() always comes together with getdelim()
-        deprecated("To be removed after 2.104. Use core.sys.posix.stdio.getline instead.")
-        ptrdiff_t getline(char**, size_t*, FILE*);
-    }
 }
 
 //------------------------------------------------------------------------------
@@ -550,8 +592,8 @@ Throws: `ErrnoException` if the file could not be opened.
                                 stdioOpenmode, "'")),
                 name);
 
-        // MSVCRT workaround (issue 14422)
-        version (MICROSOFT_STDIO)
+        // MSVCRT workaround (https://issues.dlang.org/show_bug.cgi?id=14422)
+        version (CRuntime_Microsoft)
         {
             setAppendWin(stdioOpenmode);
         }
@@ -679,7 +721,7 @@ Throws: `ErrnoException` in case of error.
         }
         _p = cast(Impl*) enforce(malloc(Impl.sizeof), "Out of memory");
         initImpl(handle, name, 1, isPopened);
-        version (MICROSOFT_STDIO)
+        version (CRuntime_Microsoft)
         {
             setAppendWin(stdioOpenmode);
         }
@@ -708,13 +750,13 @@ Throws: `ErrnoException` in case of error.
         {
             auto handle = _p.handle;
             _p.handle = null;
-            // fclose disassociates the FILE* even in case of error (issue 19751)
+            // fclose disassociates the FILE* even in case of error (https://issues.dlang.org/show_bug.cgi?id=19751)
             errnoEnforce(.fclose(handle) == 0,
                     "Could not close file `"~_name~"'");
         }
     }
 
-    version (MICROSOFT_STDIO)
+    version (CRuntime_Microsoft)
     {
         private void setAppendWin(scope const(char)[] stdioOpenmode) @safe
         {
@@ -847,7 +889,7 @@ Params:
         auto modez = stdioOpenmode.tempCString();
         detach();
 
-        version (DIGITAL_MARS_STDIO)
+        version (CRuntime_DigitalMars)
         {
             // This is a re-implementation of DMC's fdopen, but without the
             // mucking with the file descriptor.  POSIX standard requires the
@@ -862,17 +904,20 @@ Params:
             iob._flag &= ~_IOTRAN;
             _FUNLOCK(fp);
         }
-        else
+        else version (CRuntime_Microsoft)
         {
-            version (Windows) // MSVCRT
-                auto fp = _fdopen(fd, modez);
-            else version (Posix)
-            {
-                import core.sys.posix.stdio : fdopen;
-                auto fp = fdopen(fd, modez);
-            }
+            auto fp = _fdopen(fd, modez);
             errnoEnforce(fp);
         }
+        else version (Posix)
+        {
+            import core.sys.posix.stdio : fdopen;
+            auto fp = fdopen(fd, modez);
+            errnoEnforce(fp);
+        }
+        else
+            static assert(0, "no fdopen() available");
+
         this = File(fp, name);
     }
 
@@ -898,7 +943,7 @@ Throws: `ErrnoException` in case of error.
         import std.format : format;
 
         // Create file descriptors from the handles
-        version (DIGITAL_MARS_STDIO)
+        version (CRuntime_DigitalMars)
             auto fd = _handleToFD(handle, FHND_DEVICE);
         else // MSVCRT
         {
@@ -1140,10 +1185,10 @@ Throws: `ErrnoException` if the file is not opened or the call to `fread` fails.
         enforce(isOpen, "Attempting to read from an unopened file");
         version (Windows)
         {
-            immutable fd = .fileno(_p.handle);
+            immutable fileno_t fd = .fileno(_p.handle);
             immutable mode = .__setmode(fd, _O_BINARY);
             scope(exit) .__setmode(fd, mode);
-            version (DIGITAL_MARS_STDIO)
+            version (CRuntime_DigitalMars)
             {
                 import core.atomic : atomicOp;
 
@@ -1230,7 +1275,7 @@ Throws: `ErrnoException` if the file is not opened or if the call to `fwrite` fa
 
         version (Windows)
         {
-            immutable fd = .fileno(_p.handle);
+            immutable fileno_t fd = .fileno(_p.handle);
             immutable oldMode = .__setmode(fd, _O_BINARY);
 
             if (oldMode != _O_BINARY)
@@ -1241,7 +1286,7 @@ Throws: `ErrnoException` if the file is not opened or if the call to `fwrite` fa
                 .__setmode(fd, _O_BINARY);
             }
 
-            version (DIGITAL_MARS_STDIO)
+            version (CRuntime_DigitalMars)
             {
                 import core.atomic : atomicOp;
 
@@ -2287,7 +2332,7 @@ Returns the `FILE*` corresponding to this object.
 /**
 Returns the file number corresponding to this object.
  */
-    @property int fileno() const @trusted
+    @property fileno_t fileno() const @trusted
     {
         import std.exception : enforce;
 
@@ -2304,7 +2349,7 @@ Returns the underlying operating system `HANDLE` (Windows only).
     version (Windows)
     @property HANDLE windowsHandle()
     {
-        version (DIGITAL_MARS_STDIO)
+        version (CRuntime_DigitalMars)
             return _fdToHandle(fileno);
         else
             return cast(HANDLE)_get_osfhandle(fileno);
@@ -3100,7 +3145,7 @@ is empty, throws an `Exception`. In case of an I/O error throws
             file_ = f;
             FILE* fps = f._p.handle;
 
-            version (MICROSOFT_STDIO)
+            version (CRuntime_Microsoft)
             {
                 // Microsoft doesn't implement fwide. Instead, there's the
                 // concept of ANSI/UNICODE mode. fputc doesn't work in UNICODE
@@ -3108,10 +3153,13 @@ is empty, throws an `Exception`. In case of an I/O error throws
                 // "wide-oriented" for us.
                 immutable int mode = __setmode(f.fileno, _O_TEXT);
                     // Set some arbitrary mode to obtain the previous one.
-                __setmode(f.fileno, mode); // Restore previous mode.
-                if (mode & (_O_WTEXT | _O_U16TEXT | _O_U8TEXT))
+                if (mode != -1) // __setmode() succeeded
                 {
-                    orientation_ = 1; // wide
+                    __setmode(f.fileno, mode); // Restore previous mode.
+                    if (mode & (_O_WTEXT | _O_U16TEXT | _O_U8TEXT))
+                    {
+                        orientation_ = 1; // wide
+                    }
                 }
             }
             else
@@ -3336,8 +3384,9 @@ is empty, throws an `Exception`. In case of an I/O error throws
 
         version (Windows)
         {
-            int fd, oldMode;
-            version (DIGITAL_MARS_STDIO)
+            fileno_t fd;
+            int oldMode;
+            version (CRuntime_DigitalMars)
                 ubyte oldInfo;
         }
 
@@ -3359,7 +3408,7 @@ is empty, throws an `Exception`. In case of an I/O error throws
                 .fflush(fps); // before changing translation mode
                 fd = .fileno(fps);
                 oldMode = .__setmode(fd, _O_BINARY);
-                version (DIGITAL_MARS_STDIO)
+                version (CRuntime_DigitalMars)
                 {
                     import core.atomic : atomicOp;
 
@@ -3380,7 +3429,7 @@ is empty, throws an `Exception`. In case of an I/O error throws
             version (Windows)
             {
                 .fflush(fps); // before restoring translation mode
-                version (DIGITAL_MARS_STDIO)
+                version (CRuntime_DigitalMars)
                 {
                     // https://issues.dlang.org/show_bug.cgi?id=4243
                     __fhnd_info[fd] = oldInfo;
@@ -3795,7 +3844,7 @@ void main()
     assert(std.file.readText!string(deleteme) == "y");
 }
 
-@safe unittest // issue 18801
+@safe unittest // https://issues.dlang.org/show_bug.cgi?id=18801
 {
     static import std.file;
     import std.string : stripLeft;
@@ -3838,7 +3887,7 @@ void main()
         return setlocale(LC_CTYPE, loc.ptr).fromStringz.endsWith(loc);
     });
     scope(exit) () @trusted { setlocale(LC_CTYPE, oldCt); } ();
-    version (DIGITAL_MARS_STDIO) // DM can't handle Unicode above U+07FF.
+    version (CRuntime_DigitalMars) // DM can't handle Unicode above U+07FF.
     {
         alias strs = AliasSeq!("xä\u07FE", "yö\u07FF"w);
     }
@@ -3848,7 +3897,7 @@ void main()
     }
     {
         auto f = File(deleteme, "w");
-        version (MICROSOFT_STDIO)
+        version (CRuntime_Microsoft)
         {
             () @trusted { __setmode(fileno(f.getFP()), _O_U8TEXT); } ();
         }
@@ -5488,7 +5537,7 @@ private struct LockedFile
 // Private implementation of readln
 private size_t readlnImpl(FILE* fps, ref char[] buf, dchar terminator, File.Orientation orientation) @safe
 {
-    version (DIGITAL_MARS_STDIO)
+    version (CRuntime_DigitalMars)
     return () @trusted {
         auto lf = LockedFile(fps);
         ReadlnAppender app;
@@ -5601,7 +5650,7 @@ private size_t readlnImpl(FILE* fps, ref char[] buf, dchar terminator, File.Orie
         buf = app.data;
         return buf.length;
     }();
-    else version (MICROSOFT_STDIO)
+    else version (CRuntime_Microsoft)
     {
         auto lf = LockedFile(fps);
 

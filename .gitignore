@@ -6,7 +6,6 @@ generated
 GNUmakefile
 .DS_Store
 .*.sw*
-Makefile
 *.lst
 
 temp/
@@ -25,3 +24,5 @@ obj/
 .dub/
 libphobos_*
 source/
+
+tools/ucd*
