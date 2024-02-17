@@ -131,6 +131,7 @@ private:
     POSIX this is a slash, under Windows a backslash.
 */
 version (Posix)          enum string dirSeparator = "/";
+else version (WASI)     enum string dirSeparator = "/";
 else version (Windows)   enum string dirSeparator = "\\";
 else static assert(0, "unsupported platform");
 
@@ -141,6 +142,7 @@ else static assert(0, "unsupported platform");
     under Windows.
 */
 version (Posix)          enum string pathSeparator = ":";
+version (WASI)          enum string pathSeparator = ":";
 else version (Windows)   enum string pathSeparator = ";";
 else static assert(0, "unsupported platform");
 
@@ -371,6 +373,7 @@ enum CaseSensitive : bool
 version (Windows)     private enum osDefaultCaseSensitivity = false;
 else version (Darwin) private enum osDefaultCaseSensitivity = false;
 else version (Posix)  private enum osDefaultCaseSensitivity = true;
+else version (WASI)  private enum osDefaultCaseSensitivity = true;
 else static assert(0);
 
 /**

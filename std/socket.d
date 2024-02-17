@@ -103,6 +103,19 @@ else version (Posix)
 }
 else version (WASI)
 {
+    import core.sys.wasi.netdb;
+    import core.sys.wasi.netinet.tcp;
+    import core.sys.wasi.sys.select;
+    import core.sys.wasi.sys.time;
+    private alias _ctimeval = core.sys.wasi.sys.time.timeval;
+    private alias _clinger = core.sys.wasi.sys.socket.linger;
+    enum socket_t : int32_t { _init = -1 }
+    private enum : int
+    {
+        SD_RECEIVE = SHUT_RD,
+        SD_SEND    = SHUT_WR,
+        SD_BOTH    = SHUT_RDWR
+    }
     private int _lasterr() nothrow @nogc;
 }
 else

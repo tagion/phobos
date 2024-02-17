@@ -63,7 +63,6 @@ else version (Posix)
 
 version (StdUnittest) import std.exception : assertThrown;
 
-
 /++
     Represents a time zone. It is used with $(REF SysTime,std,datetime,systime)
     to indicate the time zone of a $(REF SysTime,std,datetime,systime).
@@ -92,7 +91,6 @@ public:
         return _name;
     }
 
-
     /++
         Typically, the abbreviation (generally 3 or 4 letters) for the time zone
         when DST is $(I not) in effect (e.g. PST). It is not necessarily unique.
@@ -104,7 +102,6 @@ public:
     {
         return _stdName;
     }
-
 
     /++
         Typically, the abbreviation (generally 3 or 4 letters) for the time zone
@@ -118,7 +115,6 @@ public:
         return _dstName;
     }
 
-
     /++
         Whether this time zone has Daylight Savings Time at any point in time.
         Note that for some time zone types it may not have DST for current dates
@@ -126,7 +122,6 @@ public:
         some point have DST.
       +/
     @property abstract bool hasDST() @safe const nothrow;
-
 
     /++
         Takes the number of hnsecs (100 ns) since midnight, January 1st, 1 A.D.
@@ -139,7 +134,6 @@ public:
       +/
     abstract bool dstInEffect(long stdTime) @safe const scope nothrow;
 
-
     /++
         Takes the number of hnsecs (100 ns) since midnight, January 1st, 1 A.D.
         in UTC time (i.e. std time) and converts it to this time zone's time.
@@ -150,7 +144,6 @@ public:
       +/
     abstract long utcToTZ(long stdTime) @safe const scope nothrow;
 
-
     /++
         Takes the number of hnsecs (100 ns) since midnight, January 1st, 1 A.D.
         in this time zone's time and converts it to UTC (i.e. std time).
@@ -160,7 +153,6 @@ public:
                       UTC time.
       +/
     abstract long tzToUTC(long adjTime) @safe const scope nothrow;
-
 
     /++
         Returns what the offset from UTC is at the given std time.
@@ -185,11 +177,16 @@ public:
     {
         switch (windowsTZName)
         {
-            case "Belarus Standard Time": return "Kaliningrad Standard Time"; // Added 2014-10-08
-            case "Russia Time Zone 10": return "Magadan Standard Time"; // Added 2014-10-08
-            case "Russia Time Zone 11": return "Magadan Standard Time"; // Added 2014-10-08
-            case "Russia Time Zone 3": return "Russian Standard Time"; // Added 2014-10-08
-            default: return null;
+        case "Belarus Standard Time":
+            return "Kaliningrad Standard Time"; // Added 2014-10-08
+        case "Russia Time Zone 10":
+            return "Magadan Standard Time"; // Added 2014-10-08
+        case "Russia Time Zone 11":
+            return "Magadan Standard Time"; // Added 2014-10-08
+        case "Russia Time Zone 3":
+            return "Russian Standard Time"; // Added 2014-10-08
+        default:
+            return null;
         }
     }
 
@@ -206,19 +203,24 @@ public:
         import std.stdio : writefln;
         import std.typecons : tuple;
 
-        version (Posix) alias getTimeZone = PosixTimeZone.getTimeZone;
-        else version (Windows) alias getTimeZone = WindowsTimeZone.getTimeZone;
+        version (Posix)
+            alias getTimeZone = PosixTimeZone.getTimeZone;
+        else version (Windows)
+            alias getTimeZone = WindowsTimeZone.getTimeZone;
 
-        version (Posix) scope(exit) clearTZEnvVar();
+        version (Posix)
+            scope (exit)
+                clearTZEnvVar();
 
         static immutable(TimeZone) testTZ(string tzName,
-                                          string stdName,
-                                          string dstName,
-                                          Duration utcOffset,
-                                          Duration dstOffset,
-                                          bool north = true)
+            string stdName,
+            string dstName,
+            Duration utcOffset,
+            Duration dstOffset,
+            bool north = true)
         {
-            scope(failure) writefln("Failed time zone: %s", tzName);
+            scope (failure)
+                writefln("Failed time zone: %s", tzName);
 
             version (Posix)
             {
@@ -238,6 +240,7 @@ public:
             assert(tz.hasDST == hasDST);
 
             import std.datetime.date : DateTime;
+
             immutable stdDate = DateTime(2010, north ? 1 : 7, 1, 6, 0, 0);
             immutable dstDate = DateTime(2010, north ? 7 : 1, 1, 6, 0, 0);
             auto std = SysTime(stdDate, tz);
@@ -321,58 +324,77 @@ public:
         }
 
         import std.datetime.date : DateTime;
-        auto dstSwitches = [/+America/Los_Angeles+/ tuple(DateTime(2012, 3, 11),  DateTime(2012, 11, 4), 2, 2),
-                            /+America/New_York+/    tuple(DateTime(2012, 3, 11),  DateTime(2012, 11, 4), 2, 2),
-                            ///+America/Santiago+/    tuple(DateTime(2011, 8, 21),  DateTime(2011, 5, 8), 0, 0),
-                            /+Europe/London+/       tuple(DateTime(2012, 3, 25),  DateTime(2012, 10, 28), 1, 2),
-                            /+Europe/Paris+/        tuple(DateTime(2012, 3, 25),  DateTime(2012, 10, 28), 2, 3),
-                            /+Australia/Adelaide+/  tuple(DateTime(2012, 10, 7),  DateTime(2012, 4, 1), 2, 3)];
+
+        auto dstSwitches = [ /+America/Los_Angeles+/ tuple(DateTime(2012, 3, 11), DateTime(2012, 11, 4), 2, 2),
+            /+America/New_York+/
+            tuple(DateTime(2012, 3, 11), DateTime(2012, 11, 4), 2, 2),
+            ///+America/Santiago+/    tuple(DateTime(2011, 8, 21),  DateTime(2011, 5, 8), 0, 0),
+            /+Europe/London+/
+            tuple(DateTime(2012, 3, 25), DateTime(2012, 10, 28), 1, 2),
+            /+Europe/Paris+/
+            tuple(DateTime(2012, 3, 25), DateTime(2012, 10, 28), 2, 3),
+            /+Australia/Adelaide+/
+            tuple(DateTime(2012, 10, 7), DateTime(2012, 4, 1), 2, 3)
+        ];
 
         import std.datetime.date : DateTimeException;
+
         version (Posix)
         {
-            version (FreeBSD)            enum utcZone = "Etc/UTC";
-            else version (OpenBSD)       enum utcZone = "UTC";
-            else version (NetBSD)        enum utcZone = "UTC";
-            else version (DragonFlyBSD)  enum utcZone = "UTC";
-            else version (linux)         enum utcZone = "UTC";
-            else version (Darwin)        enum utcZone = "UTC";
-            else version (Solaris)       enum utcZone = "UTC";
-            else static assert(0, "The location of the UTC timezone file on this Posix platform must be set.");
+            version (FreeBSD)
+                enum utcZone = "Etc/UTC";
+            else version (OpenBSD)
+                enum utcZone = "UTC";
+            else version (NetBSD)
+                enum utcZone = "UTC";
+            else version (DragonFlyBSD)
+                enum utcZone = "UTC";
+            else version (linux)
+                enum utcZone = "UTC";
+            else version (Darwin)
+                enum utcZone = "UTC";
+            else version (Solaris)
+                enum utcZone = "UTC";
+            else
+                static assert(0, "The location of the UTC timezone file on this Posix platform must be set.");
 
-            auto tzs = [testTZ("America/Los_Angeles", "PST", "PDT", dur!"hours"(-8), dur!"hours"(1)),
-                        testTZ("America/New_York", "EST", "EDT", dur!"hours"(-5), dur!"hours"(1)),
-                        //testTZ("America/Santiago", "CLT", "CLST", dur!"hours"(-4), dur!"hours"(1), false),
-                        testTZ("Europe/London", "GMT", "BST", dur!"hours"(0), dur!"hours"(1)),
-                        testTZ("Europe/Paris", "CET", "CEST", dur!"hours"(1), dur!"hours"(1)),
-                        // Per www.timeanddate.com, it should be "CST" and "CDT",
-                        // but the OS insists that it's "CST" for both. We should
-                        // probably figure out how to report an error in the TZ
-                        // database and report it.
-                        testTZ("Australia/Adelaide", "CST", "CST",
-                               dur!"hours"(9) + dur!"minutes"(30), dur!"hours"(1), false)];
+            auto tzs = [
+                testTZ("America/Los_Angeles", "PST", "PDT", dur!"hours"(-8), dur!"hours"(1)),
+                testTZ("America/New_York", "EST", "EDT", dur!"hours"(-5), dur!"hours"(1)),
+                //testTZ("America/Santiago", "CLT", "CLST", dur!"hours"(-4), dur!"hours"(1), false),
+                testTZ("Europe/London", "GMT", "BST", dur!"hours"(0), dur!"hours"(1)),
+                testTZ("Europe/Paris", "CET", "CEST", dur!"hours"(1), dur!"hours"(1)),
+                // Per www.timeanddate.com, it should be "CST" and "CDT",
+                // but the OS insists that it's "CST" for both. We should
+                // probably figure out how to report an error in the TZ
+                // database and report it.
+                testTZ("Australia/Adelaide", "CST", "CST",
+                    dur!"hours"(9) + dur!"minutes"(30), dur!"hours"(1), false)
+            ];
 
             testTZ(utcZone, "UTC", "UTC", dur!"hours"(0), dur!"hours"(0));
             assertThrown!DateTimeException(PosixTimeZone.getTimeZone("hello_world"));
         }
         else version (Windows)
         {
-            auto tzs = [testTZ("Pacific Standard Time", "Pacific Standard Time",
-                               "Pacific Daylight Time", dur!"hours"(-8), dur!"hours"(1)),
-                        testTZ("Eastern Standard Time", "Eastern Standard Time",
-                               "Eastern Daylight Time", dur!"hours"(-5), dur!"hours"(1)),
-                        //testTZ("Pacific SA Standard Time", "Pacific SA Standard Time",
-                               //"Pacific SA Daylight Time", dur!"hours"(-4), dur!"hours"(1), false),
-                        testTZ("GMT Standard Time", "GMT Standard Time",
-                               "GMT Daylight Time", dur!"hours"(0), dur!"hours"(1)),
-                        testTZ("Romance Standard Time", "Romance Standard Time",
-                               "Romance Daylight Time", dur!"hours"(1), dur!"hours"(1)),
-                        testTZ("Cen. Australia Standard Time", "Cen. Australia Standard Time",
-                               "Cen. Australia Daylight Time",
-                               dur!"hours"(9) + dur!"minutes"(30), dur!"hours"(1), false)];
+            auto tzs = [
+                testTZ("Pacific Standard Time", "Pacific Standard Time",
+                    "Pacific Daylight Time", dur!"hours"(-8), dur!"hours"(1)),
+                testTZ("Eastern Standard Time", "Eastern Standard Time",
+                    "Eastern Daylight Time", dur!"hours"(-5), dur!"hours"(1)),
+                //testTZ("Pacific SA Standard Time", "Pacific SA Standard Time",
+                //"Pacific SA Daylight Time", dur!"hours"(-4), dur!"hours"(1), false),
+                testTZ("GMT Standard Time", "GMT Standard Time",
+                    "GMT Daylight Time", dur!"hours"(0), dur!"hours"(1)),
+                testTZ("Romance Standard Time", "Romance Standard Time",
+                    "Romance Daylight Time", dur!"hours"(1), dur!"hours"(1)),
+                testTZ("Cen. Australia Standard Time", "Cen. Australia Standard Time",
+                    "Cen. Australia Daylight Time",
+                    dur!"hours"(9) + dur!"minutes"(30), dur!"hours"(1), false)
+            ];
 
             testTZ("Greenwich Standard Time", "Greenwich Standard Time",
-                   "Greenwich Daylight Time", dur!"hours"(0), dur!"hours"(0));
+                "Greenwich Daylight Time", dur!"hours"(0), dur!"hours"(0));
             assertThrown!DateTimeException(WindowsTimeZone.getTimeZone("hello_world"));
         }
         else
@@ -392,14 +414,15 @@ public:
             foreach (hour; -12 .. 13)
             {
                 import std.exception : enforce;
+
                 auto st = SysTime(dstSwitches[i][0] + dur!"hours"(hour), tz);
                 immutable targetHour = hour < 0 ? hour + 24 : hour;
 
                 static void testHour(SysTime st, int hour, string tzName, size_t line = __LINE__)
                 {
                     enforce(st.hour == hour,
-                            new AssertError(format("[%s] [%s]: [%s] [%s]", st, tzName, st.hour, hour),
-                                            __FILE__, line));
+                        new AssertError(format("[%s] [%s]: [%s] [%s]", st, tzName, st.hour, hour),
+                            __FILE__, line));
                 }
 
                 void testOffset1(Duration offset, bool dstInEffect, size_t line = __LINE__)
@@ -407,8 +430,8 @@ public:
                     AssertError msg(string tag)
                     {
                         return new AssertError(format("%s [%s] [%s]: [%s] [%s] [%s]",
-                                                      tag, st, tz.name, st.utcOffset, stdOffset, dstOffset),
-                                               __FILE__, line);
+                                tag, st, tz.name, st.utcOffset, stdOffset, dstOffset),
+                            __FILE__, line);
                     }
 
                     enforce(st.dstInEffect == dstInEffect, msg("1"));
@@ -464,10 +487,11 @@ public:
                     AssertError msg(string tag)
                     {
                         return new AssertError(format("%s [%s] [%s]: [%s] [%s]", tag, hour, tz.name, utc, local),
-                                               __FILE__, line);
+                            __FILE__, line);
                     }
 
                     import std.exception : enforce;
+
                     enforce((utc + offset).hour == local.hour, msg("1"));
                     enforce((utc + offset + dur!"minutes"(1)).hour == local.hour, msg("2"));
                 }
@@ -498,7 +522,6 @@ public:
         }
     }
 
-
 protected:
 
     /++
@@ -514,14 +537,12 @@ protected:
         _dstName = dstName;
     }
 
-
 private:
 
     immutable string _name;
     immutable string _stdName;
     immutable string _dstName;
 }
-
 
 /++
     A TimeZone which represents the current local time zone on
@@ -547,7 +568,6 @@ public:
         return (cast(FuncType)&singleton)();
     }
 
-
     version (StdDdoc)
     {
         /++
@@ -567,7 +587,6 @@ public:
         @property override string name() @safe const nothrow;
     }
 
-
     /++
         Typically, the abbreviation (generally 3 or 4 letters) for the time zone
         when DST is $(I not) in effect (e.g. PST). It is not necessarily unique.
@@ -586,6 +605,7 @@ public:
         {
             import core.stdc.time : tzname;
             import std.conv : to;
+
             try
                 return to!string(tzname[0]);
             catch (Exception e)
@@ -641,7 +661,8 @@ public:
 
             version (Posix)
             {
-                scope(exit) clearTZEnvVar();
+                scope (exit)
+                    clearTZEnvVar();
 
                 setTZEnvVar("America/Los_Angeles");
                 assert(LocalTime().stdName == "PST");
@@ -651,7 +672,6 @@ public:
             }
         }
     }
-
 
     /++
         Typically, the abbreviation (generally 3 or 4 letters) for the time zone
@@ -671,6 +691,7 @@ public:
         {
             import core.stdc.time : tzname;
             import std.conv : to;
+
             try
                 return to!string(tzname[1]);
             catch (Exception e)
@@ -719,7 +740,8 @@ public:
 
         version (Posix)
         {
-            scope(exit) clearTZEnvVar();
+            scope (exit)
+                clearTZEnvVar();
 
             version (FreeBSD)
             {
@@ -741,7 +763,6 @@ public:
         }
     }
 
-
     /++
         Whether this time zone has Daylight Savings Time at any point in time.
         Note that for some time zone types it may not have DST for current
@@ -759,11 +780,14 @@ public:
                 try
                 {
                     import std.datetime.date : Date;
+
                     auto currYear = (cast(Date) Clock.currTime()).year;
                     auto janOffset = SysTime(Date(currYear, 1, 4), cast(immutable) this).stdTime -
-                                     SysTime(Date(currYear, 1, 4), UTC()).stdTime;
+                        SysTime(
+                            Date(currYear, 1, 4), UTC()).stdTime;
                     auto julyOffset = SysTime(Date(currYear, 7, 4), cast(immutable) this).stdTime -
-                                      SysTime(Date(currYear, 7, 4), UTC()).stdTime;
+                        SysTime(
+                            Date(currYear, 7, 4), UTC()).stdTime;
 
                     return janOffset != julyOffset;
                 }
@@ -786,7 +810,8 @@ public:
 
         version (Posix)
         {
-            scope(exit) clearTZEnvVar();
+            scope (exit)
+                clearTZEnvVar();
 
             setTZEnvVar("America/Los_Angeles");
             assert(LocalTime().hasDST);
@@ -798,7 +823,6 @@ public:
             assert(!LocalTime().hasDST);
         }
     }
-
 
     /++
         Takes the number of hnsecs (100 ns) since midnight, January 1st, 1 A.D.
@@ -850,7 +874,6 @@ public:
         LocalTime().dstInEffect(currTime);
     }
 
-
     /++
         Returns hnsecs in the local time zone using the standard C function
         calls on Posix systems and the standard Windows system calls on Windows
@@ -871,6 +894,7 @@ public:
         {
             import core.stdc.time : tm;
             import core.sys.posix.time : localtime_r;
+
             time_t unixTime = stdTimeToUnixTime(stdTime);
             tm timeInfo = void;
             localtime_r(&unixTime, &timeInfo);
@@ -891,7 +915,6 @@ public:
         LocalTime().utcToTZ(0);
     }
 
-
     /++
         Returns std time using the standard C function calls on Posix systems
         and the standard Windows system calls on Windows systems to adjust the
@@ -910,6 +933,7 @@ public:
         {
             import core.stdc.time : tm;
             import core.sys.posix.time : localtime_r;
+
             time_t unixTime = stdTimeToUnixTime(adjTime);
 
             immutable past = unixTime - cast(time_t) convert!("days", "seconds")(1);
@@ -955,20 +979,25 @@ public:
 
         version (Posix)
         {
-            scope(exit) clearTZEnvVar();
+            scope (exit)
+                clearTZEnvVar();
 
             import std.datetime.date : DateTime;
-            auto tzInfos = [tuple("America/Los_Angeles", DateTime(2012, 3, 11), DateTime(2012, 11, 4), 2, 2),
-                            tuple("America/New_York",    DateTime(2012, 3, 11), DateTime(2012, 11, 4), 2, 2),
-                            //tuple("America/Santiago",    DateTime(2011, 8, 21), DateTime(2011, 5, 8), 0, 0),
-                            tuple("Atlantic/Azores",     DateTime(2011, 3, 27), DateTime(2011, 10, 30), 0, 1),
-                            tuple("Europe/London",       DateTime(2012, 3, 25), DateTime(2012, 10, 28), 1, 2),
-                            tuple("Europe/Paris",        DateTime(2012, 3, 25), DateTime(2012, 10, 28), 2, 3),
-                            tuple("Australia/Adelaide",  DateTime(2012, 10, 7), DateTime(2012, 4, 1), 2, 3)];
+
+            auto tzInfos = [
+                tuple("America/Los_Angeles", DateTime(2012, 3, 11), DateTime(2012, 11, 4), 2, 2),
+                tuple("America/New_York", DateTime(2012, 3, 11), DateTime(2012, 11, 4), 2, 2),
+                //tuple("America/Santiago",    DateTime(2011, 8, 21), DateTime(2011, 5, 8), 0, 0),
+                tuple("Atlantic/Azores", DateTime(2011, 3, 27), DateTime(2011, 10, 30), 0, 1),
+                tuple("Europe/London", DateTime(2012, 3, 25), DateTime(2012, 10, 28), 1, 2),
+                tuple("Europe/Paris", DateTime(2012, 3, 25), DateTime(2012, 10, 28), 2, 3),
+                tuple("Australia/Adelaide", DateTime(2012, 10, 7), DateTime(2012, 4, 1), 2, 3)
+            ];
 
             foreach (i; 0 .. tzInfos.length)
             {
                 import std.exception : enforce;
+
                 auto tzName = tzInfos[i][0];
                 setTZEnvVar(tzName);
                 immutable spring = tzInfos[i][3];
@@ -987,8 +1016,8 @@ public:
                     static void testHour(SysTime st, int hour, string tzName, size_t line = __LINE__)
                     {
                         enforce(st.hour == hour,
-                                new AssertError(format("[%s] [%s]: [%s] [%s]", st, tzName, st.hour, hour),
-                                                __FILE__, line));
+                            new AssertError(format("[%s] [%s]: [%s] [%s]", st, tzName, st.hour, hour),
+                                __FILE__, line));
                     }
 
                     void testOffset1(Duration offset, bool dstInEffect, size_t line = __LINE__)
@@ -996,8 +1025,8 @@ public:
                         AssertError msg(string tag)
                         {
                             return new AssertError(format("%s [%s] [%s]: [%s] [%s] [%s]",
-                                                          tag, st, tzName, st.utcOffset, stdOffset, dstOffset),
-                                                   __FILE__, line);
+                                    tag, st, tzName, st.utcOffset, stdOffset, dstOffset),
+                                __FILE__, line);
                         }
 
                         enforce(st.dstInEffect == dstInEffect, msg("1"));
@@ -1053,7 +1082,7 @@ public:
                         AssertError msg(string tag)
                         {
                             return new AssertError(format("%s [%s] [%s]: [%s] [%s]", tag, hour, tzName, utc, local),
-                                                   __FILE__, line);
+                                __FILE__, line);
                         }
 
                         enforce((utc + offset).hour == local.hour, msg("1"));
@@ -1087,7 +1116,6 @@ public:
         }
     }
 
-
 private:
 
     this() @safe immutable pure
@@ -1095,19 +1123,18 @@ private:
         super("", "", "");
     }
 
-
     // This is done so that we can maintain purity in spite of doing an impure
     // operation the first time that LocalTime() is called.
     static immutable(LocalTime) singleton() @trusted
     {
         import core.stdc.time : tzset;
         import std.concurrency : initOnce;
+
         static instance = new immutable(LocalTime)();
         static shared bool guard;
-        initOnce!guard({tzset(); return true;}());
+        initOnce!guard({ tzset(); return true; }());
         return instance;
     }
-
 
     // The Solaris version of struct tm has no tm_gmtoff field, so do it here
     version (Solaris)
@@ -1124,12 +1151,11 @@ private:
             gmtime_r(&unixTime, &timeInfoGmt);
 
             return timeInfo.tm_sec - timeInfoGmt.tm_sec +
-                   convert!("minutes", "seconds")(timeInfo.tm_min - timeInfoGmt.tm_min) +
-                   convert!("hours", "seconds")(timeInfo.tm_hour - timeInfoGmt.tm_hour);
+                convert!("minutes", "seconds")(timeInfo.tm_min - timeInfoGmt.tm_min) +
+                convert!("hours", "seconds")(timeInfo.tm_hour - timeInfoGmt.tm_hour);
         }
     }
 }
-
 
 /++
     A $(LREF TimeZone) which represents UTC.
@@ -1146,7 +1172,6 @@ public:
         return _utc;
     }
 
-
     /++
         Always returns false.
       +/
@@ -1155,7 +1180,6 @@ public:
         return false;
     }
 
-
     /++
         Always returns false.
       +/
@@ -1163,7 +1187,6 @@ public:
     {
         return false;
     }
-
 
     /++
         Returns the given hnsecs without changing them at all.
@@ -1186,17 +1209,18 @@ public:
 
         version (Posix)
         {
-            scope(exit) clearTZEnvVar();
+            scope (exit)
+                clearTZEnvVar();
 
             setTZEnvVar("UTC");
             import std.datetime.date : Date;
+
             auto std = SysTime(Date(2010, 1, 1));
             auto dst = SysTime(Date(2010, 7, 1));
             assert(UTC().utcToTZ(std.stdTime) == std.stdTime);
             assert(UTC().utcToTZ(dst.stdTime) == dst.stdTime);
         }
     }
-
 
     /++
         Returns the given hnsecs without changing them at all.
@@ -1219,17 +1243,18 @@ public:
 
         version (Posix)
         {
-            scope(exit) clearTZEnvVar();
+            scope (exit)
+                clearTZEnvVar();
 
             setTZEnvVar("UTC");
             import std.datetime.date : Date;
+
             auto std = SysTime(Date(2010, 1, 1));
             auto dst = SysTime(Date(2010, 7, 1));
             assert(UTC().tzToUTC(std.stdTime) == std.stdTime);
             assert(UTC().tzToUTC(dst.stdTime) == dst.stdTime);
         }
     }
-
 
     /++
         Returns a $(REF Duration, core,time) of 0.
@@ -1243,7 +1268,6 @@ public:
         return dur!"hnsecs"(0);
     }
 
-
 private:
 
     this() @safe immutable pure
@@ -1251,10 +1275,8 @@ private:
         super("UTC", "UTC", "UTC");
     }
 
-
     static immutable UTC _utc = new immutable(UTC)();
 }
-
 
 /++
     Represents a time zone with an offset (in minutes, west is negative) from
@@ -1281,7 +1303,6 @@ public:
         return false;
     }
 
-
     /++
         Always returns false.
       +/
@@ -1289,7 +1310,6 @@ public:
     {
         return false;
     }
-
 
     /++
         Takes the number of hnsecs (100 ns) since midnight, January 1st, 1 A.D.
@@ -1317,7 +1337,6 @@ public:
         assert(cstz.utcToTZ(50002) == west.utcToTZ(50002));
     }
 
-
     /++
         Takes the number of hnsecs (100 ns) since midnight, January 1st, 1 A.D.
         in this time zone's time and converts it to UTC (i.e. std time).
@@ -1344,7 +1363,6 @@ public:
         assert(cstz.tzToUTC(20005) == west.tzToUTC(20005));
     }
 
-
     /++
         Returns utcOffset as a $(REF Duration, core,time).
 
@@ -1357,7 +1375,6 @@ public:
         return _utcOffset;
     }
 
-
     /++
         Params:
             utcOffset = This time zone's offset from UTC with west of UTC being
@@ -1369,8 +1386,9 @@ public:
         // FIXME This probably needs to be changed to something like (-12 - 13).
         import std.datetime.date : DateTimeException;
         import std.exception : enforce;
+
         enforce!DateTimeException(abs(utcOffset) < dur!"minutes"(1440),
-                                    "Offset from UTC must be within range (-24:00 - 24:00).");
+            "Offset from UTC must be within range (-24:00 - 24:00).");
         super("", stdName, "");
         this._utcOffset = utcOffset;
     }
@@ -1384,7 +1402,6 @@ public:
         assert(stz.utcOffset == dur!"hours"(-8));
     }
 
-
     /++
         The amount of time the offset from UTC is (negative is west of UTC,
         positive is east).
@@ -1393,7 +1410,6 @@ public:
     {
         return _utcOffset;
     }
-
 
 package:
 
@@ -1409,6 +1425,7 @@ package:
     static string toISOString(Duration utcOffset) @safe pure
     {
         import std.array : appender;
+
         auto w = appender!string();
         w.reserve(5);
         toISOString(w, utcOffset);
@@ -1417,14 +1434,15 @@ package:
 
     // ditto
     static void toISOString(W)(ref W writer, Duration utcOffset)
-    if (isOutputRange!(W, char))
+            if (isOutputRange!(W, char))
     {
         import std.datetime.date : DateTimeException;
         import std.exception : enforce;
         import std.format.write : formattedWrite;
+
         immutable absOffset = abs(utcOffset);
         enforce!DateTimeException(absOffset < dur!"minutes"(1440),
-                                  "Offset from UTC must be within range (-24:00 - 24:00).");
+            "Offset from UTC must be within range (-24:00 - 24:00).");
         int hours;
         int minutes;
         absOffset.split!("hours", "minutes")(hours, minutes);
@@ -1444,6 +1462,7 @@ package:
         }
 
         import std.datetime.date : DateTimeException;
+
         assertThrown!DateTimeException(testSTZInvalid(dur!"minutes"(1440)));
         assertThrown!DateTimeException(testSTZInvalid(dur!"minutes"(-1440)));
 
@@ -1467,7 +1486,6 @@ package:
         assert(toISOString(dur!"minutes"(-1439)) == "-2359");
     }
 
-
     /+
         Returns a time zone as a string with an offset from UTC.
 
@@ -1480,6 +1498,7 @@ package:
     static string toISOExtString(Duration utcOffset) @safe pure
     {
         import std.array : appender;
+
         auto w = appender!string();
         w.reserve(6);
         toISOExtString(w, utcOffset);
@@ -1495,7 +1514,7 @@ package:
 
         immutable absOffset = abs(utcOffset);
         enforce!DateTimeException(absOffset < dur!"minutes"(1440),
-                                  "Offset from UTC must be within range (-24:00 - 24:00).");
+            "Offset from UTC must be within range (-24:00 - 24:00).");
         int hours;
         int minutes;
         absOffset.split!("hours", "minutes")(hours, minutes);
@@ -1515,6 +1534,7 @@ package:
         }
 
         import std.datetime.date : DateTimeException;
+
         assertThrown!DateTimeException(testSTZInvalid(dur!"minutes"(1440)));
         assertThrown!DateTimeException(testSTZInvalid(dur!"minutes"(-1440)));
 
@@ -1538,7 +1558,6 @@ package:
         assert(toISOExtString(dur!"minutes"(-1439)) == "-23:59");
     }
 
-
     /+
         Takes a time zone as a string with an offset from UTC and returns a
         $(LREF SimpleTimeZone) which matches.
@@ -1550,7 +1569,7 @@ package:
             isoString = A string which represents a time zone in the ISO format.
       +/
     static immutable(SimpleTimeZone) fromISOString(S)(S isoString) @safe pure
-        if (isSomeString!S)
+    if (isSomeString!S)
     {
         import std.algorithm.searching : startsWith;
         import std.conv : text, to, ConvException;
@@ -1598,27 +1617,31 @@ package:
         import core.exception : AssertError;
         import std.format : format;
 
-        foreach (str; ["", "Z", "-", "+", "-:", "+:", "-1:", "+1:", "+1", "-1",
-                       "-24:00", "+24:00", "-24", "+24", "-2400", "+2400",
-                       "1", "+1", "-1", "+9", "-9",
-                       "+1:0", "+01:0", "+1:00", "+01:000", "+01:60",
-                       "-1:0", "-01:0", "-1:00", "-01:000", "-01:60",
-                       "000", "00000", "0160", "-0160",
-                       " +08:00", "+ 08:00", "+08 :00", "+08: 00", "+08:00 ",
-                       " -08:00", "- 08:00", "-08 :00", "-08: 00", "-08:00 ",
-                       " +0800", "+ 0800", "+08 00", "+08 00", "+0800 ",
-                       " -0800", "- 0800", "-08 00", "-08 00", "-0800 ",
-                       "+ab:cd", "+abcd", "+0Z:00", "+Z", "+00Z",
-                       "-ab:cd", "+abcd", "-0Z:00", "-Z", "-00Z",
-                       "01:00", "12:00", "23:59"])
+        foreach (str; [
+            "", "Z", "-", "+", "-:", "+:", "-1:", "+1:", "+1", "-1",
+            "-24:00", "+24:00", "-24", "+24", "-2400", "+2400",
+            "1", "+1", "-1", "+9", "-9",
+            "+1:0", "+01:0", "+1:00", "+01:000", "+01:60",
+            "-1:0", "-01:0", "-1:00", "-01:000", "-01:60",
+            "000", "00000", "0160", "-0160",
+            " +08:00", "+ 08:00", "+08 :00", "+08: 00", "+08:00 ",
+            " -08:00", "- 08:00", "-08 :00", "-08: 00", "-08:00 ",
+            " +0800", "+ 0800", "+08 00", "+08 00", "+0800 ",
+            " -0800", "- 0800", "-08 00", "-08 00", "-0800 ",
+            "+ab:cd", "+abcd", "+0Z:00", "+Z", "+00Z",
+            "-ab:cd", "+abcd", "-0Z:00", "-Z", "-00Z",
+            "01:00", "12:00", "23:59"
+        ])
         {
             import std.datetime.date : DateTimeException;
+
             assertThrown!DateTimeException(SimpleTimeZone.fromISOString(str), format("[%s]", str));
         }
 
         static void test(string str, Duration utcOffset, size_t line = __LINE__)
         {
-            if (SimpleTimeZone.fromISOString(str).utcOffset != (new immutable SimpleTimeZone(utcOffset)).utcOffset)
+            if (SimpleTimeZone.fromISOString(str)
+                .utcOffset != (new immutable SimpleTimeZone(utcOffset)).utcOffset)
                 throw new AssertError("unittest failure", __FILE__, line);
         }
 
@@ -1692,7 +1715,6 @@ package:
         test("-23:59", -1439);
     }
 
-
     /+
         Takes a time zone as a string with an offset from UTC and returns a
         $(LREF SimpleTimeZone) which matches.
@@ -1704,7 +1726,7 @@ package:
             isoExtString = A string which represents a time zone in the ISO format.
       +/
     static immutable(SimpleTimeZone) fromISOExtString(S)(scope S isoExtString) @safe pure
-        if (isSomeString!S)
+            if (isSomeString!S)
     {
         import std.algorithm.searching : startsWith;
         import std.conv : ConvException, to;
@@ -1743,7 +1765,7 @@ package:
             // cast to int from uint is used because it checks for
             // non digits without extra loops
             hours = cast(int) to!uint(hoursStr);
-            minutes = cast(int) (minutesStr.empty ? 0 : to!uint(minutesStr));
+            minutes = cast(int)(minutesStr.empty ? 0 : to!uint(minutesStr));
         }
         catch (ConvException)
         {
@@ -1760,27 +1782,31 @@ package:
         import core.exception : AssertError;
         import std.format : format;
 
-        foreach (str; ["", "Z", "-", "+", "-:", "+:", "-1:", "+1:", "+1", "-1",
-                       "-24:00", "+24:00", "-24", "+24", "-2400", "-2400",
-                       "1", "+1", "-1", "+9", "-9",
-                       "+1:0", "+01:0", "+1:00", "+01:000", "+01:60",
-                       "-1:0", "-01:0", "-1:00", "-01:000", "-01:60",
-                       "000", "00000", "0160", "-0160",
-                       " +08:00", "+ 08:00", "+08 :00", "+08: 00", "+08:00 ",
-                       " -08:00", "- 08:00", "-08 :00", "-08: 00", "-08:00 ",
-                       " +0800", "+ 0800", "+08 00", "+08 00", "+0800 ",
-                       " -0800", "- 0800", "-08 00", "-08 00", "-0800 ",
-                       "+ab:cd", "abcd", "+0Z:00", "+Z", "+00Z",
-                       "-ab:cd", "abcd", "-0Z:00", "-Z", "-00Z",
-                       "0100", "1200", "2359"])
+        foreach (str; [
+            "", "Z", "-", "+", "-:", "+:", "-1:", "+1:", "+1", "-1",
+            "-24:00", "+24:00", "-24", "+24", "-2400", "-2400",
+            "1", "+1", "-1", "+9", "-9",
+            "+1:0", "+01:0", "+1:00", "+01:000", "+01:60",
+            "-1:0", "-01:0", "-1:00", "-01:000", "-01:60",
+            "000", "00000", "0160", "-0160",
+            " +08:00", "+ 08:00", "+08 :00", "+08: 00", "+08:00 ",
+            " -08:00", "- 08:00", "-08 :00", "-08: 00", "-08:00 ",
+            " +0800", "+ 0800", "+08 00", "+08 00", "+0800 ",
+            " -0800", "- 0800", "-08 00", "-08 00", "-0800 ",
+            "+ab:cd", "abcd", "+0Z:00", "+Z", "+00Z",
+            "-ab:cd", "abcd", "-0Z:00", "-Z", "-00Z",
+            "0100", "1200", "2359"
+        ])
         {
             import std.datetime.date : DateTimeException;
+
             assertThrown!DateTimeException(SimpleTimeZone.fromISOExtString(str), format("[%s]", str));
         }
 
         static void test(string str, Duration utcOffset, size_t line = __LINE__)
         {
-            if (SimpleTimeZone.fromISOExtString(str).utcOffset != (new immutable SimpleTimeZone(utcOffset)).utcOffset)
+            if (SimpleTimeZone.fromISOExtString(str)
+                .utcOffset != (new immutable SimpleTimeZone(utcOffset)).utcOffset)
                 throw new AssertError("unittest failure", __FILE__, line);
         }
 
@@ -1854,12 +1880,10 @@ package:
         test("-23:59", -1439);
     }
 
-
 private:
 
     immutable Duration _utcOffset;
 }
-
 
 /++
     Represents a time zone from a TZ Database time zone file. Files from the TZ
@@ -1896,6 +1920,7 @@ final class PosixTimeZone : TimeZone
     import std.stdio : File;
     import std.string : strip, representation;
     import std.traits : isArray, isSomeChar;
+
 public:
 
     /++
@@ -1908,7 +1933,6 @@ public:
     {
         return _hasDST;
     }
-
 
     /++
         Takes the number of hnsecs (100 ns) since midnight, January 1st, 1 A.D.
@@ -1934,7 +1958,6 @@ public:
         return transition.ttInfo.isDST;
     }
 
-
     /++
         Takes the number of hnsecs (100 ns) since midnight, January 1st, 1 A.D.
         in UTC time (i.e. std time) and converts it to this time zone's time.
@@ -1952,13 +1975,13 @@ public:
         immutable found = countUntil!"b < a.timeT"(_transitions, unixTime);
 
         if (found == -1)
-            return stdTime + convert!("seconds", "hnsecs")(_transitions.back.ttInfo.utcOffset + leapSecs);
+            return stdTime + convert!("seconds", "hnsecs")(
+                _transitions.back.ttInfo.utcOffset + leapSecs);
 
         immutable transition = found == 0 ? _transitions[0] : _transitions[found - 1];
 
         return stdTime + convert!("seconds", "hnsecs")(transition.ttInfo.utcOffset + leapSecs);
     }
-
 
     /++
         Takes the number of hnsecs (100 ns) since midnight, January 1st, 1 A.D.
@@ -1980,7 +2003,8 @@ public:
         immutable pastFound = countUntil!"b < a.timeT"(_transitions, past);
 
         if (pastFound == -1)
-            return adjTime - convert!("seconds", "hnsecs")(_transitions.back.ttInfo.utcOffset + leapSecs);
+            return adjTime - convert!("seconds", "hnsecs")(
+                _transitions.back.ttInfo.utcOffset + leapSecs);
 
         immutable futureFound = countUntil!"b < a.timeT"(_transitions[pastFound .. $], future);
         immutable pastTrans = pastFound == 0 ? _transitions[0] : _transitions[pastFound - 1];
@@ -1989,7 +2013,7 @@ public:
             return adjTime - convert!("seconds", "hnsecs")(pastTrans.ttInfo.utcOffset + leapSecs);
 
         immutable futureTrans = futureFound == -1 ? _transitions.back
-                                                  : _transitions[pastFound + futureFound - 1];
+            : _transitions[pastFound + futureFound - 1];
         immutable pastOffset = pastTrans.ttInfo.utcOffset;
 
         if (pastOffset < futureTrans.ttInfo.utcOffset)
@@ -1998,13 +2022,13 @@ public:
         immutable found = countUntil!"b < a.timeT"(_transitions[pastFound .. $], unixTime - pastOffset);
 
         if (found == -1)
-            return adjTime - convert!("seconds", "hnsecs")(_transitions.back.ttInfo.utcOffset + leapSecs);
+            return adjTime - convert!("seconds", "hnsecs")(
+                _transitions.back.ttInfo.utcOffset + leapSecs);
 
         immutable transition = found == 0 ? pastTrans : _transitions[pastFound + found - 1];
 
         return adjTime - convert!("seconds", "hnsecs")(transition.ttInfo.utcOffset + leapSecs);
     }
-
 
     version (StdDdoc)
     {
@@ -2021,6 +2045,7 @@ public:
     else version (TZDatabaseDir)
     {
         import std.string : strip;
+
         enum defaultTZDatabaseDir = strip(import("TZDatabaseDirFile"));
     }
     else version (Android)
@@ -2035,11 +2060,14 @@ public:
     {
         enum defaultTZDatabaseDir = "/usr/share/zoneinfo/";
     }
+    else version (WASI)
+    {
+        enum defaultTZDatabaseDir = "/usr/share/zoneinfo/";
+    }
     else version (Windows)
     {
         enum defaultTZDatabaseDir = "";
     }
-
 
     /++
         Returns a $(LREF TimeZone) with the give name per the TZ Database. The
@@ -2079,7 +2107,8 @@ public:
 
         name = strip(name);
 
-        enforce(tzDatabaseDir.exists(), new DateTimeException(format("Directory %s does not exist.", tzDatabaseDir)));
+        enforce(tzDatabaseDir.exists(), new DateTimeException(
+                format("Directory %s does not exist.", tzDatabaseDir)));
         enforce(tzDatabaseDir.isDir, new DateTimeException(format("%s is not a directory.", tzDatabaseDir)));
 
         version (Android)
@@ -2096,10 +2125,12 @@ public:
         enforce(file.isFile, new DateTimeException(format("%s is not a file.", file)));
 
         auto tzFile = File(file);
-        version (Android) tzFile.seek(*tzfileOffset);
+        version (Android)
+            tzFile.seek(*tzfileOffset);
         immutable gmtZone = name.representation().canFind("GMT");
 
         import std.datetime.date : DateTimeException;
+
         try
         {
             _enforceValidTZFile(readVal!(char[])(tzFile, 4) == "TZif");
@@ -2122,7 +2153,6 @@ public:
 
                 _enforceValidTZFile(allZeroes);
             }
-
 
             // The number of UTC/local indicators stored in the file.
             auto tzh_ttisgmtcnt = readVal!int(tzFile);
@@ -2213,7 +2243,6 @@ public:
                     _enforceValidTZFile(allZeroes);
                 }
 
-
                 // The number of UTC/local indicators stored in the file.
                 tzh_ttisgmtcnt = readVal!int(tzFile);
 
@@ -2292,7 +2321,6 @@ public:
                 _enforceValidTZFile(tzFile.readln().strip().empty);
                 _enforceValidTZFile(tzFile.eof);
             }
-
 
             auto transitionTypes = new TransitionType*[](tempTTInfos.length);
 
@@ -2431,11 +2459,14 @@ public:
         {
             import std.array : replace;
             import std.path : dirSeparator;
+
             subName = replace(strip(subName), "/", dirSeparator);
         }
 
         import std.datetime.date : DateTimeException;
-        enforce(tzDatabaseDir.exists(), new DateTimeException(format("Directory %s does not exist.", tzDatabaseDir)));
+
+        enforce(tzDatabaseDir.exists(), new DateTimeException(
+                format("Directory %s does not exist.", tzDatabaseDir)));
         enforce(tzDatabaseDir.isDir, new DateTimeException(format("%s is not a directory.", tzDatabaseDir)));
 
         auto timezones = appender!(string[])();
@@ -2451,6 +2482,7 @@ public:
         else
         {
             import std.path : baseName;
+
             // dirEntries is @system because it uses a DirIterator with a
             // RefCounted variable, but here, no references to the payload is
             // escaped to the outside, so this should be @trusted
@@ -2485,16 +2517,19 @@ public:
     {
         import std.exception : assertNotThrown;
         import std.stdio : writefln;
+
         static void testPTZSuccess(string tzName)
         {
-            scope(failure) writefln("TZName which threw: %s", tzName);
+            scope (failure)
+                writefln("TZName which threw: %s", tzName);
 
             PosixTimeZone.getTimeZone(tzName);
         }
 
         static void testPTZFailure(string tzName)
         {
-            scope(success) writefln("TZName which was supposed to throw: %s", tzName);
+            scope (success)
+                writefln("TZName which was supposed to throw: %s", tzName);
 
             PosixTimeZone.getTimeZone(tzName);
         }
@@ -2502,12 +2537,14 @@ public:
         auto tzNames = getInstalledTZNames();
 
         import std.datetime.date : DateTimeException;
+
         foreach (tzName; tzNames)
             assertNotThrown!DateTimeException(testPTZSuccess(tzName));
 
         // No timezone directories on Android, just a single tzdata file
         version (Android)
-        {}
+        {
+        }
         else
         {
             foreach (DirEntry de; dirEntries(defaultTZDatabaseDir, SpanMode.depth))
@@ -2523,7 +2560,6 @@ public:
         }
     }
 
-
 private:
 
     /+
@@ -2533,16 +2569,15 @@ private:
       +/
     struct Transition
     {
-        this(long timeT, immutable (TTInfo)* ttInfo) @safe pure
+        this(long timeT, immutable(TTInfo)* ttInfo) @safe pure
         {
             this.timeT = timeT;
             this.ttInfo = ttInfo;
         }
 
-        long    timeT;
-        immutable (TTInfo)* ttInfo;
+        long timeT;
+        immutable(TTInfo)* ttInfo;
     }
-
 
     /+
         Holds information on when a leap second occurs.
@@ -2572,11 +2607,10 @@ private:
             this.abbrev = abbrev;
         }
 
-        immutable int    utcOffset;  // Offset from UTC.
-        immutable bool   isDST;      // Whether DST is in effect.
-        immutable string abbrev;     // The current abbreviation for the time zone.
+        immutable int utcOffset; // Offset from UTC.
+        immutable bool isDST; // Whether DST is in effect.
+        immutable string abbrev; // The current abbreviation for the time zone.
     }
-
 
     /+
         Struct used to hold information relating to `TTInfo` while organizing
@@ -2591,11 +2625,10 @@ private:
             tt_abbrind = abbrInd;
         }
 
-        int   tt_gmtoff;
-        bool  tt_isdst;
+        int tt_gmtoff;
+        bool tt_isdst;
         ubyte tt_abbrind;
     }
-
 
     /+
         Struct used to hold information relating to `Transition` while
@@ -2604,18 +2637,17 @@ private:
       +/
     struct TempTransition
     {
-        this(long timeT, immutable (TTInfo)* ttInfo, TransitionType* ttype) @safe pure
+        this(long timeT, immutable(TTInfo)* ttInfo, TransitionType* ttype) @safe pure
         {
             this.timeT = timeT;
             this.ttInfo = ttInfo;
             this.ttype = ttype;
         }
 
-        long                timeT;
-        immutable (TTInfo)* ttInfo;
-        TransitionType*     ttype;
+        long timeT;
+        immutable(TTInfo)* ttInfo;
+        TransitionType* ttype;
     }
-
 
     /+
         Struct used to hold information relating to `Transition` and
@@ -2637,14 +2669,14 @@ private:
         bool inUTC;
     }
 
-
     /+
         Reads an int from a TZ file.
       +/
     static T readVal(T)(ref File tzFile) @trusted
-        if ((isIntegral!T || isSomeChar!T) || is(immutable T == immutable bool))
+            if ((isIntegral!T || isSomeChar!T) || is(immutable T == immutable bool))
     {
         import std.bitmanip : bigEndianToNative;
+
         T[1] buff;
 
         _enforceValidTZFile(!tzFile.eof);
@@ -2656,8 +2688,7 @@ private:
     /+
         Reads an array of values from a TZ file.
       +/
-    static T readVal(T)(ref File tzFile, size_t length) @trusted
-        if (isArray!T)
+    static T readVal(T)(ref File tzFile, size_t length) @trusted if (isArray!T)
     {
         auto buff = new T(length);
 
@@ -2667,18 +2698,15 @@ private:
         return buff;
     }
 
-
     /+
         Reads a `TempTTInfo` from a TZ file.
       +/
-    static T readVal(T)(ref File tzFile) @safe
-        if (is(T == TempTTInfo))
+    static T readVal(T)(ref File tzFile) @safe if (is(T == TempTTInfo))
     {
         return TempTTInfo(readVal!int(tzFile),
-                          readVal!bool(tzFile),
-                          readVal!ubyte(tzFile));
+            readVal!bool(tzFile),
+            readVal!ubyte(tzFile));
     }
-
 
     /+
         Throws:
@@ -2687,10 +2715,10 @@ private:
     static void _enforceValidTZFile(bool result, size_t line = __LINE__) @safe pure
     {
         import std.datetime.date : DateTimeException;
+
         if (!result)
             throw new DateTimeException("Not a valid tzdata file.", __FILE__, line);
     }
-
 
     int calculateLeapSeconds(long stdTime) @safe const scope pure nothrow
     {
@@ -2712,13 +2740,12 @@ private:
         return leapSecond.total;
     }
 
-
     this(immutable Transition[] transitions,
-         immutable LeapSecond[] leapSeconds,
-         string name,
-         string stdName,
-         string dstName,
-         bool hasDST) @safe immutable pure
+        immutable LeapSecond[] leapSeconds,
+        string name,
+        string stdName,
+        string dstName,
+        bool hasDST) @safe immutable pure
     {
         if (dstName.empty && !stdName.empty)
             dstName = stdName;
@@ -2729,12 +2756,13 @@ private:
 
         if (!transitions.empty)
         {
-            foreach (i, transition; transitions[0 .. $-1])
+            foreach (i, transition; transitions[0 .. $ - 1])
                 _enforceValidTZFile(transition.timeT < transitions[i + 1].timeT);
         }
 
         foreach (i, leapSecond; leapSeconds)
-            _enforceValidTZFile(i == leapSeconds.length - 1 || leapSecond.timeT < leapSeconds[i + 1].timeT);
+            _enforceValidTZFile(i == leapSeconds.length - 1 || leapSecond.timeT < leapSeconds[i + 1]
+                    .timeT);
 
         _transitions = transitions;
         _leapSeconds = leapSeconds;
@@ -2793,13 +2821,13 @@ private:
                 else if (indexFile.exists() && indexFile.isFile)
                 {
                     tzFile = File(indexFile);
-                    indexEntries = to!uint(tzFile.size/indexEntrySize);
+                    indexEntries = to!uint(tzFile.size / indexEntrySize);
                     separate_index = true;
                 }
                 else
                 {
                     throw new DateTimeException(format("Both timezone files %s and %s do not exist.",
-                                                       combinedFile, indexFile));
+                        combinedFile, indexFile));
                 }
 
                 foreach (_; 0 .. indexEntries)
@@ -2825,7 +2853,6 @@ private:
     // Whether DST is in effect for this time zone at any point in time.
     immutable bool _hasDST;
 }
-
 
 version (StdDdoc)
 {
@@ -2867,7 +2894,6 @@ version (StdDdoc)
           +/
         @property override bool hasDST() @safe const scope nothrow;
 
-
         /++
             Takes the number of hnsecs (100 ns) since midnight, January 1st,
             1 A.D. in UTC time (i.e. std time) and returns whether DST is in
@@ -2878,7 +2904,6 @@ version (StdDdoc)
                           time zone.
           +/
         override bool dstInEffect(long stdTime) @safe const scope nothrow;
-
 
         /++
             Takes the number of hnsecs (100 ns) since midnight, January 1st,
@@ -2891,7 +2916,6 @@ version (StdDdoc)
           +/
         override long utcToTZ(long stdTime) @safe const scope nothrow;
 
-
         /++
             Takes the number of hnsecs (100 ns) since midnight, January 1st,
             1 A.D. in this time zone's time and converts it to UTC (i.e. std
@@ -2902,7 +2926,6 @@ version (StdDdoc)
                           to UTC time.
           +/
         override long tzToUTC(long adjTime) @safe const scope nothrow;
-
 
         /++
             Returns a $(LREF TimeZone) with the given name per the Windows time
@@ -2929,7 +2952,6 @@ version (StdDdoc)
           +/
         static immutable(WindowsTimeZone) getTimeZone(string name) @safe;
 
-
         /++
             Returns a list of the names of the time zones installed on the
             system. The list returned by WindowsTimeZone contains the Windows
@@ -2942,7 +2964,8 @@ version (StdDdoc)
     private:
 
         version (Windows)
-        {}
+        {
+        }
         else
             alias TIME_ZONE_INFORMATION = void*;
 
@@ -2973,28 +2996,25 @@ else version (Windows)
             return _tzInfo.DaylightDate.wMonth != 0;
         }
 
-
         override bool dstInEffect(long stdTime) @safe const scope nothrow
         {
             return _dstInEffect(&_tzInfo, stdTime);
         }
-
 
         override long utcToTZ(long stdTime) @safe const scope nothrow
         {
             return _utcToTZ(&_tzInfo, stdTime, hasDST);
         }
 
-
         override long tzToUTC(long adjTime) @safe const scope nothrow
         {
             return _tzToUTC(&_tzInfo, adjTime, hasDST);
         }
 
-
         static immutable(WindowsTimeZone) getTimeZone(string name) @trusted
         {
-            scope baseKey = Registry.localMachine.getKey(`Software\Microsoft\Windows NT\CurrentVersion\Time Zones`);
+            scope baseKey = Registry.localMachine.getKey(
+                `Software\Microsoft\Windows NT\CurrentVersion\Time Zones`);
 
             foreach (tzKeyName; baseKey.keyNames)
             {
@@ -3012,7 +3032,7 @@ else version (Windows)
                 scope tziVal = tzKey.getValue("TZI");
                 auto binVal = tziVal.value_BINARY;
                 assert(binVal.length == REG_TZI_FORMAT.sizeof,
-                        "Unexpected size while getTimeZone with name " ~ name);
+                    "Unexpected size while getTimeZone with name " ~ name);
                 auto tziFmt = cast(REG_TZI_FORMAT*) binVal.ptr;
 
                 TIME_ZONE_INFORMATION tzInfo;
@@ -3035,6 +3055,7 @@ else version (Windows)
                 return new immutable WindowsTimeZone(name, tzInfo);
             }
             import std.datetime.date : DateTimeException;
+
             throw new DateTimeException(format("Failed to find time zone: %s", name));
         }
 
@@ -3042,7 +3063,8 @@ else version (Windows)
         {
             auto timezones = appender!(string[])();
 
-            scope baseKey = Registry.localMachine.getKey(`Software\Microsoft\Windows NT\CurrentVersion\Time Zones`);
+            scope baseKey = Registry.localMachine.getKey(
+                `Software\Microsoft\Windows NT\CurrentVersion\Time Zones`);
 
             foreach (tzKeyName; baseKey.keyNames)
                 timezones.put(tzKeyName);
@@ -3055,9 +3077,11 @@ else version (Windows)
         {
             import std.exception : assertNotThrown;
             import std.stdio : writefln;
+
             static void testWTZSuccess(string tzName)
             {
-                scope(failure) writefln("TZName which threw: %s", tzName);
+                scope (failure)
+                    writefln("TZName which threw: %s", tzName);
 
                 WindowsTimeZone.getTimeZone(tzName);
             }
@@ -3065,10 +3089,10 @@ else version (Windows)
             auto tzNames = getInstalledTZNames();
 
             import std.datetime.date : DateTimeException;
+
             foreach (tzName; tzNames)
                 assertNotThrown!DateTimeException(testWTZSuccess(tzName));
         }
-
 
     private:
 
@@ -3080,12 +3104,14 @@ else version (Windows)
                     return false;
 
                 import std.datetime.date : DateTime, Month;
+
                 auto utcDateTime = cast(DateTime) SysTime(stdTime, UTC());
 
                 //The limits of what SystemTimeToTzSpecificLocalTime will accept.
                 if (utcDateTime.year < 1601)
                 {
                     import std.datetime.date : Month;
+
                     if (utcDateTime.month == Month.feb && utcDateTime.day == 29)
                         utcDateTime.day = 28;
                     utcDateTime.year = 1601;
@@ -3121,16 +3147,16 @@ else version (Windows)
                 utcTime.wMilliseconds = 0;
 
                 immutable result = SystemTimeToTzSpecificLocalTime(cast(TIME_ZONE_INFORMATION*) tzInfo,
-                                                                   &utcTime,
-                                                                   &otherTime);
+                    &utcTime,
+                    &otherTime);
                 assert(result, "Failed to create SystemTimeToTzSpecificLocalTime");
 
                 immutable otherDateTime = DateTime(otherTime.wYear,
-                                                   otherTime.wMonth,
-                                                   otherTime.wDay,
-                                                   otherTime.wHour,
-                                                   otherTime.wMinute,
-                                                   otherTime.wSecond);
+                    otherTime.wMonth,
+                    otherTime.wDay,
+                    otherTime.wHour,
+                    otherTime.wMinute,
+                    otherTime.wSecond);
                 immutable diff = utcDateTime - otherDateTime;
                 immutable minutes = diff.total!"minutes" - tzInfo.Bias;
 
@@ -3151,10 +3177,10 @@ else version (Windows)
             GetTimeZoneInformation(&tzInfo);
 
             import std.datetime.date : DateTime;
+
             foreach (year; [1600, 1601, 30_827, 30_828])
                 WindowsTimeZone._dstInEffect(&tzInfo, SysTime(DateTime(year, 1, 1)).stdTime);
         }
-
 
         static long _utcToTZ(const scope TIME_ZONE_INFORMATION* tzInfo, long stdTime, bool hasDST) @safe nothrow
         {
@@ -3164,7 +3190,6 @@ else version (Windows)
             return stdTime - convert!("minutes", "hnsecs")(tzInfo.Bias + tzInfo.StandardBias);
         }
 
-
         static long _tzToUTC(const scope TIME_ZONE_INFORMATION* tzInfo, long adjTime, bool hasDST) @trusted nothrow
         {
             if (hasDST)
@@ -3172,6 +3197,7 @@ else version (Windows)
                 try
                 {
                     import std.datetime.date : DateTime, Month;
+
                     bool dstInEffectForLocalDateTime(DateTime localDateTime)
                     {
                         // The limits of what SystemTimeToTzSpecificLocalTime will accept.
@@ -3214,17 +3240,17 @@ else version (Windows)
                         localTime.wMilliseconds = 0;
 
                         immutable result = TzSpecificLocalTimeToSystemTime(cast(TIME_ZONE_INFORMATION*) tzInfo,
-                                                                           &localTime,
-                                                                           &utcTime);
+                            &localTime,
+                            &utcTime);
                         assert(result);
                         assert(result, "Failed to create _tzToUTC");
 
                         immutable utcDateTime = DateTime(utcTime.wYear,
-                                                         utcTime.wMonth,
-                                                         utcTime.wDay,
-                                                         utcTime.wHour,
-                                                         utcTime.wMinute,
-                                                         utcTime.wSecond);
+                            utcTime.wMonth,
+                            utcTime.wDay,
+                            utcTime.wHour,
+                            utcTime.wMinute,
+                            utcTime.wSecond);
 
                         immutable diff = localDateTime - utcDateTime;
                         immutable minutes = -tzInfo.Bias - diff.total!"minutes";
@@ -3238,6 +3264,7 @@ else version (Windows)
                     }
 
                     import std.datetime.date : DateTime;
+
                     auto localDateTime = cast(DateTime) SysTime(adjTime, UTC());
                     auto localDateTimeBefore = localDateTime - dur!"hours"(1);
                     auto localDateTimeAfter = localDateTime + dur!"hours"(1);
@@ -3260,7 +3287,8 @@ else version (Windows)
                         assert(0, "Bad Logic.");
 
                     if (isDST)
-                        return adjTime + convert!("minutes", "hnsecs")(tzInfo.Bias + tzInfo.DaylightBias);
+                        return adjTime + convert!("minutes", "hnsecs")(
+                            tzInfo.Bias + tzInfo.DaylightBias);
                 }
                 catch (Exception e)
                     assert(0, "SysTime's constructor threw.");
@@ -3269,18 +3297,15 @@ else version (Windows)
             return adjTime + convert!("minutes", "hnsecs")(tzInfo.Bias + tzInfo.StandardBias);
         }
 
-
         this(string name, TIME_ZONE_INFORMATION tzInfo) @trusted immutable pure
         {
             super(name, to!string(tzInfo.StandardName.ptr), to!string(tzInfo.DaylightName.ptr));
             _tzInfo = tzInfo;
         }
 
-
         TIME_ZONE_INFORMATION _tzInfo;
     }
 }
-
 
 version (StdDdoc)
 {
@@ -3294,7 +3319,6 @@ version (StdDdoc)
         Database name, so this function only exists on Posix systems.
       +/
     void setTZEnvVar(string tzDatabaseName) @safe nothrow;
-
 
     /++
         $(BLUE This function is Posix-Only.)
@@ -3320,7 +3344,6 @@ else version (Posix)
         tzset();
     }
 
-
     void clearTZEnvVar() @trusted nothrow
     {
         import core.stdc.time : tzset;
@@ -3330,7 +3353,6 @@ else version (Posix)
         tzset();
     }
 }
-
 
 /++
     Provides the conversions between the IANA time zone database time zone names
@@ -3413,6 +3435,7 @@ TZConversions parseTZConversions(string windowsZonesXMLText) @safe pure
     foreach (line; windowsZonesXMLText.lineSplitter())
     {
         import std.exception : enforce;
+
         // Sample line:
         // <mapZone other="Canada Central Standard Time" territory="CA" type="America/Regina America/Swift_Current"/>
 
@@ -3460,7 +3483,7 @@ TZConversions parseTZConversions(string windowsZonesXMLText) @safe pure
 
     // Reduced text from http://unicode.org/cldr/data/common/supplemental/windowsZones.xml
     auto sampleFileText =
-`<?xml version="1.0" encoding="UTF-8" ?>
+        `<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE supplementalData SYSTEM "../../common/dtd/ldmlSupplemental.dtd">
 <!--
 Copyright © 1991-2013 Unicode, Inc.
@@ -3496,37 +3519,60 @@ For terms of use, see http://www.unicode.org/copyright.html
             <!-- (UTC-09:00) Alaska -->
             <mapZone other="Alaskan Standard Time" territory="001" type="America/Anchorage"/>
             <mapZone other="Alaskan Standard Time" territory="US" `
-                ~ `type="America/Anchorage America/Juneau America/Nome America/Sitka America/Yakutat"/>
+        ~ `type="America/Anchorage America/Juneau America/Nome America/Sitka America/Yakutat"/>
         </mapTimezones>
     </windowsZones>
 </supplementalData>`;
 
     auto tzConversions = parseTZConversions(sampleFileText);
     assert(tzConversions.toWindows.length == 15);
-    assert(tzConversions.toWindows["America/Anchorage"] == ["Alaskan Standard Time"]);
-    assert(tzConversions.toWindows["America/Juneau"] == ["Alaskan Standard Time"]);
+    assert(tzConversions.toWindows["America/Anchorage"] == [
+        "Alaskan Standard Time"
+    ]);
+    assert(tzConversions.toWindows["America/Juneau"] == [
+        "Alaskan Standard Time"
+    ]);
     assert(tzConversions.toWindows["America/Nome"] == ["Alaskan Standard Time"]);
     assert(tzConversions.toWindows["America/Sitka"] == ["Alaskan Standard Time"]);
-    assert(tzConversions.toWindows["America/Yakutat"] == ["Alaskan Standard Time"]);
+    assert(tzConversions.toWindows["America/Yakutat"] == [
+        "Alaskan Standard Time"
+    ]);
     assert(tzConversions.toWindows["Etc/GMT+10"] == ["Hawaiian Standard Time"]);
     assert(tzConversions.toWindows["Etc/GMT+11"] == ["UTC-11"]);
     assert(tzConversions.toWindows["Etc/GMT+12"] == ["Dateline Standard Time"]);
-    assert(tzConversions.toWindows["Pacific/Honolulu"] == ["Hawaiian Standard Time"]);
-    assert(tzConversions.toWindows["Pacific/Johnston"] == ["Hawaiian Standard Time"]);
+    assert(tzConversions.toWindows["Pacific/Honolulu"] == [
+        "Hawaiian Standard Time"
+    ]);
+    assert(tzConversions.toWindows["Pacific/Johnston"] == [
+        "Hawaiian Standard Time"
+    ]);
     assert(tzConversions.toWindows["Pacific/Midway"] == ["UTC-11"]);
     assert(tzConversions.toWindows["Pacific/Niue"] == ["UTC-11"]);
     assert(tzConversions.toWindows["Pacific/Pago_Pago"] == ["UTC-11"]);
-    assert(tzConversions.toWindows["Pacific/Rarotonga"] == ["Hawaiian Standard Time"]);
-    assert(tzConversions.toWindows["Pacific/Tahiti"] == ["Hawaiian Standard Time"]);
+    assert(tzConversions.toWindows["Pacific/Rarotonga"] == [
+        "Hawaiian Standard Time"
+    ]);
+    assert(tzConversions.toWindows["Pacific/Tahiti"] == [
+        "Hawaiian Standard Time"
+    ]);
 
     assert(tzConversions.fromWindows.length == 4);
     assert(tzConversions.fromWindows["Alaskan Standard Time"] ==
-           ["America/Anchorage", "America/Juneau", "America/Nome", "America/Sitka", "America/Yakutat"]);
+            [
+                "America/Anchorage", "America/Juneau", "America/Nome",
+                "America/Sitka", "America/Yakutat"
+    ]);
     assert(tzConversions.fromWindows["Dateline Standard Time"] == ["Etc/GMT+12"]);
     assert(tzConversions.fromWindows["Hawaiian Standard Time"] ==
-           ["Etc/GMT+10", "Pacific/Honolulu", "Pacific/Johnston", "Pacific/Rarotonga", "Pacific/Tahiti"]);
+            [
+                "Etc/GMT+10", "Pacific/Honolulu", "Pacific/Johnston",
+                "Pacific/Rarotonga", "Pacific/Tahiti"
+    ]);
     assert(tzConversions.fromWindows["UTC-11"] ==
-           ["Etc/GMT+11", "Pacific/Midway", "Pacific/Niue", "Pacific/Pago_Pago"]);
+            [
+                "Etc/GMT+11", "Pacific/Midway", "Pacific/Niue",
+                "Pacific/Pago_Pago"
+    ]);
 
     foreach (key, value; tzConversions.fromWindows)
     {

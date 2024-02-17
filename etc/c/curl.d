@@ -35,6 +35,10 @@
 
 module etc.c.curl;
 
+version (WASI) enum curl_supported=false;
+else enum curl_supported = true;
+
+static if (curl_supported):
 import core.stdc.config;
 import core.stdc.time;
 import std.socket;

@@ -185,6 +185,10 @@ else version (Solaris)
 {
     version = GENERIC_IO;
 }
+else version (WASI)
+{
+    version = GENERIC_IO;
+}
 else
 {
     static assert(0, "unsupported operating system");
@@ -449,6 +453,11 @@ else version (GENERIC_IO)
     {
         private alias _FLOCK = core.sys.posix.stdio.flockfile;
         private alias _FUNLOCK = core.sys.posix.stdio.funlockfile;
+    }
+    else version (WASI)
+    {
+        private alias _FLOCK = core.sys.wasi.stdio.flockfile;
+        private alias _FUNLOCK = core.sys.wasi.stdio.funlockfile;
     }
     else
     {

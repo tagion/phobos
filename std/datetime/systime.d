@@ -99,6 +99,10 @@ else version (Posix)
     import core.sys.posix.signal : timespec;
     import core.sys.posix.sys.types : time_t;
 }
+else version (WASI)
+{
+    import core.sys.wasi.sys.types : time_t;
+}
 
 version (StdUnittest)
 {
@@ -418,6 +422,11 @@ public:
             }
             else static assert(0, "Unsupported OS");
         }
+        else version (WASI)
+        {
+            static import core.stdc.time;
+            import core.sys.wasi.sys.time : timeval;
+        }
         else static assert(0, "Unsupported OS");
     }
 
@@ -525,6 +534,7 @@ struct SysTime
 {
     import core.stdc.time : tm;
     version (Posix) import core.sys.posix.sys.time : timeval;
+    version (WASI) import core.sys.wasi.sys.time : timeval;
     import std.typecons : Rebindable;
 
 public:

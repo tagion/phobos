@@ -110,7 +110,14 @@ else version (Posix)
 {
     import core.sys.posix.dirent, core.sys.posix.fcntl, core.sys.posix.sys.stat,
         core.sys.posix.sys.time, core.sys.posix.unistd, core.sys.posix.utime;
+    import core.sys.posix.dirent : dirent;
 }
+else version (WASI)
+{
+    import core.sys.wasi.dirent, core.sys.wasi.sys.stat, core.sys.wasi.sys.time;
+    import core.sys.wasi.dirent : dirent;
+}
+
 else
     static assert(false, "Module " ~ .stringof ~ " not implemented for this OS.");
 
@@ -120,6 +127,10 @@ version (Windows)
     private alias FSChar = WCHAR;       // WCHAR can be aliased to wchar or wchar_t
 }
 else version (Posix)
+{
+    private alias FSChar = char;
+}
+else version (WASI)
 {
     private alias FSChar = char;
 }
@@ -266,7 +277,7 @@ private T cenforce(T)(T condition, scope const(char)[] name, scope const(FSChar)
     throw new FileException(name, .GetLastError(), file, line);
 }
 
-version (Posix)
+version (PosixWasi)
 @trusted
 private T cenforce(T)(T condition, scope const(char)[] name, scope const(FSChar)* namez,
     string file = __FILE__, size_t line = __LINE__)
@@ -3454,7 +3465,11 @@ else version (Posix) string getcwd() @trusted
     scope(exit) core.stdc.stdlib.free(p);
     return p[0 .. core.stdc.string.strlen(p)].idup;
 }
-
+else version (WASI) string getcwd() {
+    import core.sys.wasm.missing;
+    mixin WASIError;
+    assert(0, wasi_error);
+}
 ///
 @safe unittest
 {
@@ -3914,7 +3929,7 @@ else version (Windows)
         uint  _attributes; /// The file attributes from WIN32_FIND_DATAW.
     }
 }
-else version (Posix)
+else // version(Posix) || version(WASI)
 {
     struct DirEntry
     {
@@ -3934,7 +3949,7 @@ else version (Posix)
             _dTypeSet = false;
         }
 
-        private this(string path, core.sys.posix.dirent.dirent* fd) @safe
+        private this(string path, dirent* fd) @safe
         {
             import std.path : buildPath;
 
@@ -4738,7 +4753,7 @@ private struct DirIteratorImpl
             return _followSymlink ? _cur.isDir : _cur.isDir && !_cur.isSymlink;
         }
     }
-    else version (Posix)
+    else //version (Posix)
     {
         struct DirHandle
         {
