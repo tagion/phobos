@@ -1054,8 +1054,7 @@ float exp(float x) @safe pure nothrow @nogc { return __ctfe ? cast(float) exp(ca
 
 private T expImpl(T)(T x) @safe pure nothrow @nogc
 {
-    import std.math : floatTraits, RealFormat;
-    import std.math.traits : isNaN;
+    import std.math.traits : floatTraits, RealFormat, isNaN;
     import std.math.rounding : floor;
     import std.math.algebraic : poly;
     import std.math.constants : LOG2E;
@@ -1195,7 +1194,7 @@ private T expImpl(T)(T x) @safe pure nothrow @nogc
 
 @safe @nogc nothrow unittest
 {
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
     import std.math.operations : NaN, feqrel, isClose;
     import std.math.constants : E;
     import std.math.traits : isIdentical;
@@ -1569,7 +1568,7 @@ L_largenegative:
 
 private T expm1Impl(T)(T x) @safe pure nothrow @nogc
 {
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
     import std.math.rounding : floor;
     import std.math.algebraic : poly;
     import std.math.constants : LN2;
@@ -1975,8 +1974,7 @@ L_was_nan:
 
 private T exp2Impl(T)(T x) @nogc @safe pure nothrow
 {
-    import std.math : floatTraits, RealFormat;
-    import std.math.traits : isNaN;
+    import std.math.traits : floatTraits, RealFormat, isNaN;
     import std.math.rounding : floor;
     import std.math.algebraic : poly;
 
@@ -2164,8 +2162,7 @@ private T exp2Impl(T)(T x) @nogc @safe pure nothrow
 T frexp(T)(const T value, out int exp) @trusted pure nothrow @nogc
 if (isFloatingPoint!T)
 {
-    import std.math : floatTraits, RealFormat, MANTISSA_MSB, MANTISSA_LSB;
-    import std.math.traits : isSubnormal;
+    import std.math.traits : floatTraits, RealFormat, MANTISSA_MSB, MANTISSA_LSB, isSubnormal;
 
     if (__ctfe)
     {
@@ -2419,8 +2416,7 @@ if (isFloatingPoint!T)
 
 @safe unittest
 {
-    import std.math : floatTraits, RealFormat;
-    import std.math.traits : isIdentical;
+    import std.math.traits : floatTraits, RealFormat, isIdentical;
     import std.meta : AliasSeq;
     import std.typecons : tuple, Tuple;
 
@@ -2552,7 +2548,7 @@ if (isFloatingPoint!T)
 int ilogb(T)(const T x) @trusted pure nothrow @nogc
 if (isFloatingPoint!T)
 {
-    import std.math : floatTraits, RealFormat, MANTISSA_MSB, MANTISSA_LSB;
+    import std.math.traits : floatTraits, RealFormat, MANTISSA_MSB, MANTISSA_LSB;
 
     import core.bitop : bsr;
     alias F = floatTraits!T;
@@ -2747,7 +2743,7 @@ alias FP_ILOGBNAN = core.stdc.math.FP_ILOGBNAN;
 
 @safe nothrow @nogc unittest
 {
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
     import std.math.operations : nextUp;
     import std.meta : AliasSeq;
     import std.typecons : Tuple;
@@ -2844,7 +2840,7 @@ float ldexp(float n, int exp)   @safe pure nothrow @nogc { return core.math.ldex
 
 @safe pure nothrow @nogc unittest
 {
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
 
     static if (floatTraits!(real).realFormat == RealFormat.ieeeExtended ||
                floatTraits!(real).realFormat == RealFormat.ieeeExtended53 ||
@@ -2932,7 +2928,7 @@ private
     // Coefficients shared across log(), log2(), log10(), log1p().
     template LogCoeffs(T)
     {
-        import std.math : floatTraits, RealFormat;
+        import std.math.traits : floatTraits, RealFormat;
 
         static if (floatTraits!T.realFormat == RealFormat.ieeeQuadruple)
         {
@@ -3245,8 +3241,7 @@ private T logImpl(T, bool LOG1P = false)(T x) @safe pure nothrow @nogc
 {
     import std.math.constants : SQRT1_2;
     import std.math.algebraic : poly;
-    import std.math.traits : isInfinity, isNaN, signbit;
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : isInfinity, isNaN, signbit, floatTraits, RealFormat;
 
     alias coeffs = LogCoeffs!T;
     alias F = floatTraits!T;
@@ -3372,7 +3367,7 @@ private T logImpl(T, bool LOG1P = false)(T x) @safe pure nothrow @nogc
 
 @safe @nogc nothrow unittest
 {
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
     import std.meta : AliasSeq;
 
     static void testLog(T)(T[2][] vals)
@@ -3518,8 +3513,7 @@ private T log10Impl(T)(T x) @safe pure nothrow @nogc
 {
     import std.math.constants : SQRT1_2;
     import std.math.algebraic : poly;
-    import std.math.traits : isNaN, isInfinity, signbit;
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : isNaN, isInfinity, signbit, floatTraits, RealFormat;
 
     alias coeffs = LogCoeffs!T;
     alias F = floatTraits!T;
@@ -3624,7 +3618,7 @@ Ldone:
 
 @safe @nogc nothrow unittest
 {
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
     import std.meta : AliasSeq;
 
     static void testLog10(T)(T[2][] vals)
@@ -3776,7 +3770,7 @@ private T log1pImpl(T)(T x) @safe pure nothrow @nogc
     import std.math.traits : isNaN, isInfinity, signbit;
     import std.math.algebraic : poly;
     import std.math.constants : SQRT1_2, SQRT2;
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
 
     // Special cases.
     if (isNaN(x) || x == 0.0)
@@ -3812,7 +3806,7 @@ private T log1pImpl(T)(T x) @safe pure nothrow @nogc
 
 @safe @nogc nothrow unittest
 {
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
     import std.meta : AliasSeq;
 
     static void testLog1p(T)(T[2][] vals)
@@ -3957,7 +3951,7 @@ private T log2Impl(T)(T x) @safe pure nothrow @nogc
     import std.math.traits : isNaN, isInfinity, signbit;
     import std.math.constants : SQRT1_2, LOG2E;
     import std.math.algebraic : poly;
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
 
     alias coeffs = LogCoeffs!T;
     alias F = floatTraits!T;
@@ -4038,7 +4032,7 @@ Ldone:
 
 @safe @nogc nothrow unittest
 {
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
     import std.meta : AliasSeq;
 
     static void testLog2(T)(T[2][] vals)
@@ -4238,7 +4232,7 @@ private T logbImpl(T)(T x) @trusted pure nothrow @nogc
 
 @safe @nogc nothrow unittest
 {
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
     import std.meta : AliasSeq;
 
     static void testLogb(T)(T[2][] vals)
