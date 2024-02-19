@@ -142,7 +142,7 @@ else static assert(0, "unsupported platform");
     under Windows.
 */
 version (Posix)          enum string pathSeparator = ":";
-version (WASI)          enum string pathSeparator = ":";
+else version (WASI)          enum string pathSeparator = ":";
 else version (Windows)   enum string pathSeparator = ";";
 else static assert(0, "unsupported platform");
 
@@ -4175,7 +4175,7 @@ string expandTilde(return scope const string inputPath) @safe nothrow
         // Put here real windows implementation.
         return inputPath;
     }
-    version (WASI)
+    else version (WASI)
     {
         import core.sys.wasi.missing;
         mixin WASIError;
