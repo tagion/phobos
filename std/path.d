@@ -196,7 +196,7 @@ version (Windows) private bool isSeparator(dchar c)  @safe pure nothrow @nogc
     return isDirSeparator(c) || isDriveSeparator(c);
 }
 version (Posix) private alias isSeparator = isDirSeparator;
-
+version (WASI) private alias isSeparator = isDirSeparator;
 
 /*  Helper function that determines the position of the last
     drive/directory separator in a string.  Returns -1 if none
@@ -800,6 +800,12 @@ private auto _rootName(R)(R path)
         {
             return path[0 .. 3];
         }
+    }
+    else version (WASI)
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
     }
     else static assert(0, "unsupported platform");
 
@@ -1668,6 +1674,12 @@ if ((isRandomAccessRange!R1 && hasSlicing!R1 && hasLength!R1 && isSomeChar!(Elem
                             --pos;
                     }
                 }
+                else version (WASI)
+                {
+                    import core.sys.wasi.missing;
+                    mixin WASIError;
+                    assert(0, wasi_error);
+                }
                 else
                     static assert(0);
             }
@@ -2425,6 +2437,12 @@ if ((isRandomAccessRange!R && hasSlicing!R ||
                     popFront();
                 }
             }
+            else version (WASI)
+            {
+                import core.sys.wasi.missing;
+                mixin WASIError;
+                assert(0, wasi_error);
+            }
             else static assert(0);
 
             if (ps == pe)
@@ -2581,6 +2599,7 @@ if (isRandomAccessRange!R && isSomeChar!(ElementType!R) ||
     if (path.length >= 1 && isDirSeparator(path[0])) return true;
     version (Posix)         return false;
     else version (Windows)  return isAbsolute!(BaseOf!R)(path);
+    else version (WASI) return false;
 }
 
 ///
@@ -2751,12 +2770,20 @@ else version (Posix)
 string absolutePath(return scope const string path, lazy string base = getcwd())
     @safe pure
 {
-    import std.array : array;
-    if (path.empty)  return null;
-    if (isAbsolute(path))  return path;
-    auto baseVar = base;
-    if (!isAbsolute(baseVar)) throw new Exception("Base directory must be absolute");
-    return chainPath(baseVar, path).array;
+    version (WASI)
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
+    }
+    else {
+        import std.array : array;
+        if (path.empty)  return null;
+        if (isAbsolute(path))  return path;
+        auto baseVar = base;
+        if (!isAbsolute(baseVar)) throw new Exception("Base directory must be absolute");
+        return chainPath(baseVar, path).array;
+    }
 }
 
 ///
@@ -4147,6 +4174,12 @@ string expandTilde(return scope const string inputPath) @safe nothrow
     {
         // Put here real windows implementation.
         return inputPath;
+    }
+    version (WASI)
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
     }
     else
     {

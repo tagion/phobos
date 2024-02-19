@@ -1044,6 +1044,12 @@ uint totalCPUsImpl() @nogc nothrow @trusted
         import core.sys.posix.unistd : _SC_NPROCESSORS_ONLN, sysconf;
         return cast(uint) sysconf(_SC_NPROCESSORS_ONLN);
     }
+    else version (WASI)
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
+    }
     else
     {
         static assert(0, "Don't know how to get N CPUs on this OS.");

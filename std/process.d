@@ -104,7 +104,10 @@ version (Windows)
     import std.utf;
     import std.windows.syserror;
 }
-
+version (WASI)
+{
+    import core.sys.wasi.sys.types;
+}
 import std.internal.cstring;
 import std.range;
 import std.stdio;
@@ -305,6 +308,12 @@ static:
             );
             return value;
         }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
         else static assert(0);
     }
 
@@ -323,6 +332,12 @@ static:
     {
         version (Windows)    SetEnvironmentVariableW(name.tempCStringW(), null);
         else version (Posix) core.sys.posix.stdlib.unsetenv(name.tempCString());
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
         else static assert(0);
     }
 
@@ -438,6 +453,12 @@ static:
                 if (name !in aa) aa[name] = val is null ? "" : val;
             }
         }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
         else static assert(0);
         return aa;
     }
@@ -509,7 +530,13 @@ private:
             if (vz == null) return sink(null);
             return sink(vz[0 .. strlen(vz)]);
        }
-        else static assert(0);
+       else version (WASI)
+       {
+           import core.sys.wasi.missing;
+           mixin WASIError;
+           assert(0, wasi_error);
+       }
+       else static assert(0);
     }
 
     string cachedToString(C)(scope const(C)[] v) @safe
@@ -618,6 +645,12 @@ private:
 {
     version (Windows)    return GetCurrentProcessId();
     else version (Posix) return core.sys.posix.unistd.getpid();
+    else version (WASI)
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
+    }
 }
 
 
@@ -642,6 +675,12 @@ private:
     {
         import core.sys.posix.pthread : pthread_self;
         return pthread_self();
+    }
+    else version (WASI)
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
     }
 }
 
@@ -819,6 +858,12 @@ Pid spawnProcess(scope const(char[])[] args,
     else version (Posix)
     {
         return spawnProcessPosix(args, stdin, stdout, stderr, env, config, workDir);
+    }
+    else version (WASI)
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
     }
     else
         static assert(0);
@@ -1987,6 +2032,12 @@ Pid spawnShell(scope const(char)[] command,
          */
         return spawnProcessPosix(args, stdin, stdout, stderr, env, config, workDir);
     }
+    else version (WASI)
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
+    }
     else
         static assert(0);
 }
@@ -2245,6 +2296,13 @@ final class Pid
     {
         return _processID;
     }
+    else version (WASI)
+    @property pid_t osHandle() @nogc @safe pure nothrow
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
+    }
 
 private:
     /*
@@ -2360,7 +2418,15 @@ private:
             }
         }
     }
-
+    else version (WASI)
+    {
+        int performWait(bool block) @trusted
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
+    }
     // Special values for _processID.
     enum invalid = -1, terminated = -2;
 
@@ -2803,7 +2869,15 @@ Pipe pipe() @trusted //TODO: @safe
             0);
     }
 }
-
+else version (WASI)
+{
+    Pipe pipe() @trusted //TODO: @safe
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
+    }
+}
 
 /// An interface to a pipe created by the $(LREF pipe) function.
 struct Pipe
@@ -3502,6 +3576,7 @@ $(LREF nativeShell).
 {
     version (Windows)      return environment.get("COMSPEC", nativeShell);
     else version (Posix)   return environment.get("SHELL", nativeShell);
+    else version (WASI)   return environment.get("SHELL", nativeShell);
 }
 
 /**
@@ -3515,11 +3590,18 @@ This function returns `"cmd.exe"` on Windows, `"/bin/sh"` on POSIX, and
     version (Windows)      return "cmd.exe";
     else version (Android) return "/system/bin/sh";
     else version (Posix)   return "/bin/sh";
+    else version (WASI)
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
+    }
 }
 
 // A command-line switch that indicates to the shell that it should
 // interpret the following argument as a command to be executed.
 version (Posix)   private immutable string shellSwitch = "-c";
+version (WASI)   private immutable string shellSwitch = "-c";
 version (Windows) private immutable string shellSwitch = "/C";
 
 // Unittest support code:  TestScript takes a string that contains a
@@ -3637,6 +3719,10 @@ string escapeShellCommand(scope const(char[])[] args...) @safe pure
         return result;
     }
     version (Posix)
+    {
+        return escapeShellCommandString(escapeShellArguments(args));
+    }
+    version (WASI)
     {
         return escapeShellCommandString(escapeShellArguments(args));
     }
@@ -4406,6 +4492,12 @@ else version (Windows)
 
     return execvpe(pathname.tempCString(), argv_, envp_);
 }
+else version (WASI)
+{
+    import core.sys.wasi.missing;
+    mixin WASIError;
+    assert(0, wasi_error);
+}
 else
 {
     static assert(0);
@@ -4489,6 +4581,16 @@ else version (Posix)
             assert(status == 0);
         }
     }
+}
+else version (WASI)
+{
+    void browse(scope const(char)[] url) nothrow @nogc @safe
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
+    }
+
 }
 else
     static assert(0, "os not supported");

@@ -101,6 +101,23 @@ struct MmapAllocator
 
         package alias allocateZeroed = allocate;
     }
+    else version (WASI)
+    {
+        pure nothrow @nogc @safe
+        void[] allocate(size_t bytes) shared const
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
+        pure nothrow @nogc
+        bool deallocate(void[] b) shared const
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
+    }
 }
 
 // pure wrappers around `mmap` and `munmap` because they are used here locally

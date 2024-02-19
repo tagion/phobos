@@ -1020,10 +1020,17 @@ Params:
             auto fp = fdopen(fd, modez);
             errnoEnforce(fp);
         }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
         else
             static assert(0, "no fdopen() available");
 
-        this = File(fp, name);
+        version (WASI) {}
+        else this = File(fp, name);
     }
 
     // Declare a dummy HANDLE to allow generating documentation
@@ -1260,6 +1267,12 @@ Throws: `Exception` if the file is not opened or if the OS call fails.
             import std.exception : errnoEnforce;
             errnoEnforce(fcntl(fileno, F_FULLFSYNC, 0) != -1, "fcntl failed");
         }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
         else
         {
             import core.sys.posix.unistd : fsync;
@@ -1482,7 +1495,9 @@ Throws: `Exception` if the file is not opened.
             import core.sys.posix.stdio : fseeko, off_t;
             alias fseekFun = fseeko;
         }
-        errnoEnforce(fseekFun(_p.handle, to!off_t(offset), origin) == 0,
+
+        version (WASI) {}
+        else errnoEnforce(fseekFun(_p.handle, to!off_t(offset), origin) == 0,
                 "Could not seek in file `"~_name~"'");
     }
 
@@ -1542,9 +1557,18 @@ Throws: `Exception` if the file is not opened.
             import core.sys.posix.stdio : ftello;
             immutable result = ftello(cast(FILE*) _p.handle);
         }
-        errnoEnforce(result != -1,
-                "Query ftell() failed for file `"~_name~"'");
-        return result;
+        version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
+        else
+        {
+            errnoEnforce(result != -1,
+                    "Query ftell() failed for file `"~_name~"'");
+            return result;
+        }
     }
 
     ///
@@ -1687,6 +1711,12 @@ $(UL
             wenforce(lockImpl!LockFileEx(start, length, type),
                     "Could not set lock for file `"~_name~"'");
         }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
         else
             static assert(false);
     }
@@ -1732,6 +1762,12 @@ specified file segment was already locked.
             wenforce(res, "Could not set lock for file `"~_name~"'");
             return true;
         }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
         else
             static assert(false);
     }
@@ -1750,6 +1786,12 @@ Removes the lock over the specified file segment.
             import std.exception : errnoEnforce;
             errnoEnforce(lockImpl(F_SETLK, F_UNLCK, start, length) != -1,
                     "Could not remove lock for file `"~_name~"'");
+        }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
         }
         else
         version (Windows)
@@ -5936,6 +5978,12 @@ private size_t readlnImpl(FILE* fps, ref char[] buf, dchar terminator, File.Orie
                 if (ferror(fps))
                     StdioException();
                 return buf.length;
+            }
+            else version (WASI)
+            {
+                import core.sys.wasi.missing;
+                mixin WASIError;
+                assert(0, wasi_error);
             }
             else
             {

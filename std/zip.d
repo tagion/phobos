@@ -273,6 +273,12 @@ final class ArchiveMember
             _externalAttributes = attr;
             _madeVersion &= 0x00FF; // attributes are in MS-DOS and OS/2 format
         }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
         else
         {
             static assert(0, "Unimplemented platform");
@@ -301,6 +307,12 @@ final class ArchiveMember
             if ((_madeVersion & 0xFF00) == 0x0000)
                 return _externalAttributes;
             return 0;
+        }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
         }
         else
         {

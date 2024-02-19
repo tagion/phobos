@@ -32,6 +32,12 @@ private mixin template AscendingPageAllocatorImpl(bool isShared)
             if (ret == 0)
                  return false;
         }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
         else
         {
             static assert(0, "Unsupported OS");
@@ -68,6 +74,12 @@ private mixin template AscendingPageAllocatorImpl(bool isShared)
             auto ret = VirtualFree(cast(void*) data, 0, MEM_RELEASE);
             if (ret == 0)
                 assert(0, "Failed to unmap memory, VirtualFree failure");
+        }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
         }
         else
         {
@@ -113,6 +125,12 @@ private mixin template AscendingPageAllocatorImpl(bool isShared)
             if (!data)
                 assert(0, "Failed to VirtualAlloc memory");
         }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
         else
         {
             static assert(0, "Unsupported OS version");
@@ -154,6 +172,12 @@ private mixin template AscendingPageAllocatorImpl(bool isShared)
 
             auto ret = VirtualAlloc(start, size, MEM_COMMIT, PAGE_READWRITE);
             return ret != null;
+        }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
         }
         else
         {

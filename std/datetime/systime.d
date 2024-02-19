@@ -101,6 +101,7 @@ else version (Posix)
 }
 else version (WASI)
 {
+    import core.sys.wasi.time : timespec;
     import core.sys.wasi.sys.types : time_t;
 }
 
@@ -2662,6 +2663,16 @@ public:
             }
         }
     }
+    else version (WASI)
+    {
+        timespec toTimeSpec() @safe const pure nothrow scope
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
+    }
+
 
     /++
         Returns a `tm` which represents this $(LREF SysTime).

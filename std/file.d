@@ -115,9 +115,9 @@ else version (Posix)
 else version (WASI)
 {
     import core.sys.wasi.dirent, core.sys.wasi.sys.stat, core.sys.wasi.sys.time;
+    import core.sys.wasi.time, core.sys.wasi.fcntl;
     import core.sys.wasi.dirent : dirent;
 }
-
 else
     static assert(false, "Module " ~ .stringof ~ " not implemented for this OS.");
 
@@ -257,6 +257,12 @@ private T cenforce(T)(T condition, lazy scope const(char)[] name, string file = 
     {
         throw new FileException(name, .errno, file, line);
     }
+    else version (WASI)
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
+    }
 }
 
 version (Windows)
@@ -277,7 +283,7 @@ private T cenforce(T)(T condition, scope const(char)[] name, scope const(FSChar)
     throw new FileException(name, .GetLastError(), file, line);
 }
 
-version (PosixWasi)
+version (Posix)
 @trusted
 private T cenforce(T)(T condition, scope const(char)[] name, scope const(FSChar)* namez,
     string file = __FILE__, size_t line = __LINE__)
@@ -292,6 +298,16 @@ private T cenforce(T)(T condition, scope const(char)[] name, scope const(FSChar)
         name = namez[0 .. len].idup;
     }
     throw new FileException(name, .errno, file, line);
+}
+
+version (WASI)
+@trusted
+private T cenforce(T)(T condition, scope const(char)[] name, scope const(FSChar)* namez,
+    string file = __FILE__, size_t line = __LINE__)
+{
+    import core.sys.wasi.missing;
+    mixin WASIError;
+    assert(0, wasi_error);
 }
 
 // https://issues.dlang.org/show_bug.cgi?id=17102
@@ -1254,6 +1270,14 @@ private SysTime statTimeToStdTime(char which)(ref const stat_t statbuf)
     return SysTime(stdTime);
 }
 
+version (WASI)
+private SysTime statTimeToStdTime(char which)(ref const stat_t statbuf)
+{
+    import core.sys.wasi.missing;
+    mixin WASIError;
+    assert(0, wasi_error);
+}
+
 /++
     Get the access and modified times of file or folder `name`.
 
@@ -2002,6 +2026,12 @@ private bool existsImpl(scope const(FSChar)* namez) @trusted nothrow @nogc
         stat_t statbuf = void;
         return lstat(namez, &statbuf) == 0;
     }
+    else version (WASI)
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
+    }
     else
         static assert(0);
 }
@@ -2165,6 +2195,12 @@ if (isSomeFiniteCharInputRange!R && !isConvertibleToString!R)
             string names = null;
         cenforce(trustedLstat(namez, lstatbuf) == 0, names, namez);
         return lstatbuf.st_mode;
+    }
+    else version (WASI)
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
     }
 }
 
@@ -2371,6 +2407,12 @@ if (isSomeFiniteCharInputRange!R && !isConvertibleToString!R)
     {
         return (getAttributes(name) & S_IFMT) == S_IFDIR;
     }
+    else version (WASI)
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
+    }
 }
 
 /// ditto
@@ -2459,6 +2501,12 @@ bool attrIsDir(uint attributes) @safe pure nothrow @nogc
     {
         return (attributes & S_IFMT) == S_IFDIR;
     }
+    else version (WASI)
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
+    }
 }
 
 ///
@@ -2546,6 +2594,12 @@ if (isSomeFiniteCharInputRange!R && !isConvertibleToString!R)
         return !name.isDir;
     else version (Posix)
         return (getAttributes(name) & S_IFMT) == S_IFREG;
+    else version (WASI)
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
+    }
 }
 
 /// ditto
@@ -2642,6 +2696,12 @@ bool attrIsFile(uint attributes) @safe pure nothrow @nogc
     else version (Posix)
     {
         return (attributes & S_IFMT) == S_IFREG;
+    }
+    else version (WASI)
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
     }
 }
 
@@ -2859,6 +2919,12 @@ bool attrIsSymlink(uint attributes) @safe pure nothrow @nogc
         return (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
     else version (Posix)
         return (attributes & S_IFMT) == S_IFLNK;
+    else version (WASI)
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
+    }
 }
 
 ///
@@ -3052,8 +3118,17 @@ private bool ensureDirExists()(scope const(char)[] pathname)
             return true;
         cenforce(errno == EEXIST || errno == EISDIR, pathname);
     }
-    enforce(pathname.isDir, new FileException(pathname.idup));
-    return false;
+    version (WASI)
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
+    }
+    else
+    {
+        enforce(pathname.isDir, new FileException(pathname.idup));
+        return false;
+    }
 }
 
 /**
@@ -3187,11 +3262,20 @@ if (isSomeFiniteCharInputRange!R && !isConvertibleToString!R)
             return core.sys.posix.unistd.rmdir(pathz) == 0;
         }
     }
-    static if (isNarrowString!R && is(immutable ElementEncodingType!R == immutable char))
-        alias pathStr = pathname;
+    version (WASI)
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
+    }
     else
-        string pathStr = null;
-    cenforce(trustedRmdir(pathz), pathStr, pathz);
+    {
+        static if (isNarrowString!R && is(immutable ElementEncodingType!R == immutable char))
+            alias pathStr = pathname;
+        else
+            string pathStr = null;
+        cenforce(trustedRmdir(pathz), pathStr, pathz);
+    }
 }
 
 /// ditto
@@ -3466,7 +3550,7 @@ else version (Posix) string getcwd() @trusted
     return p[0 .. core.stdc.string.strlen(p)].idup;
 }
 else version (WASI) string getcwd() {
-    import core.sys.wasm.missing;
+    import core.sys.wasi.missing;
     mixin WASIError;
     assert(0, wasi_error);
 }
@@ -3633,6 +3717,12 @@ else version (WASI) string getcwd() {
     else version (Hurd)
     {
         return readLink("/proc/self/exe");
+    }
+    else version (WASI)
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
     }
     else
         static assert(0, "thisExePath is not supported on this platform");
@@ -5420,6 +5510,15 @@ string tempDir() @trusted
                                     "/var/tmp",
                                     "/usr/tmp");
         }
+        else version (WASI)
+        {
+            static string findExistingDir(T...)(lazy T alternatives)
+            {
+                import core.sys.wasi.missing;
+                mixin WASIError;
+                assert(0, wasi_error);
+            }
+        }
         else static assert(false, "Unsupported platform");
 
         if (cache is null)
@@ -5514,6 +5613,12 @@ ulong getAvailableDiskSpace(scope const(char)[] path) @safe
 
             return stats.f_bavail * stats.f_frsize;
         }
+    }
+    else version (WASI)
+    {
+        import core.sys.wasi.missing;
+        mixin WASIError;
+        assert(0, wasi_error);
     }
     else static assert(0, "Unsupported platform");
 }

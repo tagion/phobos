@@ -55,6 +55,13 @@ else version (Posix)
     import core.sys.posix.sys.stat;
     import core.sys.posix.unistd;
 }
+else version (WASI)
+{
+    import core.sys.wasi.fcntl;
+    //import core.sys.posix.sys.mman;
+    import core.sys.wasi.sys.stat;
+    import core.sys.wasi.unistd;
+}
 else
 {
     static assert(0);
@@ -367,6 +374,12 @@ class MmFile
 
             data = p[0 .. initial_map];
         }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
         else
         {
             static assert(0);
@@ -408,6 +421,12 @@ class MmFile
                     "Could not close handle");
             fd = -1;
         }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
         else
         {
             static assert(0);
@@ -428,6 +447,12 @@ class MmFile
             int i;
             i = msync(cast(void*) data, data.length, MS_SYNC);   // sys/mman.h
             errnoEnforce(i == 0, "msync failed");
+        }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
         }
         else
         {
@@ -518,6 +543,12 @@ class MmFile
         {
             wenforce(!data.ptr || UnmapViewOfFile(data.ptr) != FALSE, "UnmapViewOfFile");
         }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
         else
         {
             errnoEnforce(!data.ptr || munmap(cast(void*) data, data.length) == 0,
@@ -538,6 +569,12 @@ class MmFile
             uint hi = cast(uint)(start >> 32);
             p = MapViewOfFileEx(hFileMap, dwDesiredAccess, hi, cast(uint) start, len, address);
             wenforce(p, "MapViewOfFileEx");
+        }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
         }
         else
         {
@@ -614,6 +651,13 @@ private:
         uint dwDesiredAccess;
     }
     else version (Posix)
+    {
+        int fd;
+        int prot;
+        int flags;
+        int fmode;
+    }
+    else version (WASI)
     {
         int fd;
         int prot;

@@ -60,7 +60,10 @@ else version (Posix)
     import core.sys.posix.signal : timespec;
     import core.sys.posix.sys.types : time_t;
 }
-
+else version (WASI)
+{
+    import core.sys.wasi.sys.types : time_t;
+}
 version (StdUnittest) import std.exception : assertThrown;
 
 /++
@@ -642,6 +645,12 @@ public:
             catch (Exception e)
                 assert(0, "GetTimeZoneInformation() returned invalid UTF-16.");
         }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
     }
 
     @safe unittest
@@ -728,6 +737,12 @@ public:
             catch (Exception e)
                 assert(0, "GetTimeZoneInformation() returned invalid UTF-16.");
         }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
     }
 
     @safe unittest
@@ -802,6 +817,12 @@ public:
 
             return tzInfo.DaylightDate.wMonth != 0;
         }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
     }
 
     @safe unittest
@@ -866,6 +887,12 @@ public:
 
             return WindowsTimeZone._dstInEffect(&tzInfo, stdTime);
         }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
     }
 
     @safe unittest
@@ -907,6 +934,12 @@ public:
             GetTimeZoneInformation(&tzInfo);
 
             return WindowsTimeZone._utcToTZ(&tzInfo, stdTime, hasDST);
+        }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
         }
     }
 
@@ -962,6 +995,12 @@ public:
             GetTimeZoneInformation(&tzInfo);
 
             return WindowsTimeZone._tzToUTC(&tzInfo, adjTime, hasDST);
+        }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
         }
     }
 
