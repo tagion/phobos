@@ -427,6 +427,11 @@ public:
         {
             static import core.stdc.time;
             import core.sys.wasi.sys.time : timeval;
+            import core.stdc.stdio;
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            printf("%s\n", &wasi_error[0]);
+            return 0;
         }
         else static assert(0, "Unsupported OS");
     }
