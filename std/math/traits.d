@@ -21,10 +21,6 @@ module std.math.traits;
 
 import std.traits : isFloatingPoint, isIntegral, isNumeric, isSigned;
 
-<<<<<<< HEAD
-version (LDC) import ldc.intrinsics;
-=======
->>>>>>> master
 
 /*********************************
  * Determines if $(D_PARAM x) is NaN.
@@ -601,13 +597,10 @@ int signbit(X)(X x) @nogc @trusted pure nothrow
     assert(!signbit(real.max));
 }
 
-version (LDC) version (AArch64) version = LDC_AArch64;
-
 @nogc @safe pure nothrow unittest
 {
     // CTFE
     static assert(!signbit(float.nan));
-    version (LDC_AArch64) { pragma(msg, "signbit(-NaN) CTFE test disabled for AArch64"); } else
     static assert(signbit(-float.nan));
     static assert(!signbit(168.1234f));
     static assert(signbit(-168.1234f));
@@ -617,7 +610,6 @@ version (LDC) version (AArch64) version = LDC_AArch64;
     static assert(!signbit(float.max));
 
     static assert(!signbit(double.nan));
-    version (LDC_AArch64) { pragma(msg, "signbit(-NaN) CTFE test disabled for AArch64"); } else
     static assert(signbit(-double.nan));
     static assert(!signbit(168.1234));
     static assert(signbit(-168.1234));
@@ -627,7 +619,6 @@ version (LDC) version (AArch64) version = LDC_AArch64;
     static assert(!signbit(double.max));
 
     static assert(!signbit(real.nan));
-    version (LDC_AArch64) { pragma(msg, "signbit(-NaN) CTFE test disabled for AArch64"); } else
     static assert(signbit(-real.nan));
     static assert(!signbit(168.1234L));
     static assert(signbit(-168.1234L));
@@ -637,8 +628,6 @@ version (LDC) version (AArch64) version = LDC_AArch64;
     static assert(!signbit(real.max));
 }
 
-version (LDC) version (Android) version (X86_64) version = LDC_Android_X86_64;
-
 /**
 Params:
     to = the numeric value to use
@@ -646,7 +635,6 @@ Params:
 Returns:
     a value composed of to with from's sign bit.
  */
-pragma(inline, true) // LDC
 R copysign(R, X)(R to, X from) @trusted pure nothrow @nogc
 if (isFloatingPoint!(R) && isFloatingPoint!(X))
 {
@@ -656,25 +644,6 @@ if (isFloatingPoint!(R) && isFloatingPoint!(X))
     {
         return signbit(to) == signbit(from) ? to : -to;
     }
-
-  version (LDC)
-  {
-    version (LDC_Android_X86_64)
-    {
-        static if (is(Unqual!R == real))
-        {
-            // LLVM gets confused by the llvm.copysign.f128 intrinsic on x64, so call
-            // copysignl directly for reals instead.
-            return core.stdc.math.copysignl(to, cast(R) from);
-        }
-        else
-            return llvm_copysign(to, cast(R) from);
-    }
-    else
-        return llvm_copysign(to, cast(R) from);
-  }
-  else
-  {
     ubyte* pto   = cast(ubyte *)&to;
     const ubyte* pfrom = cast(ubyte *)&from;
 
@@ -683,7 +652,6 @@ if (isFloatingPoint!(R) && isFloatingPoint!(X))
     pto[T.SIGNPOS_BYTE] &= 0x7F;
     pto[T.SIGNPOS_BYTE] |= pfrom[F.SIGNPOS_BYTE] & 0x80;
     return to;
-  }
 }
 
 /// ditto

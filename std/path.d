@@ -131,7 +131,7 @@ private:
     POSIX this is a slash, under Windows a backslash.
 */
 version (Posix)          enum string dirSeparator = "/";
-else version (WASI)     enum string dirSeparator = "/";
+else version (WASI)      enum string dirSeparator = "/";
 else version (Windows)   enum string dirSeparator = "\\";
 else static assert(0, "unsupported platform");
 
@@ -142,7 +142,7 @@ else static assert(0, "unsupported platform");
     under Windows.
 */
 version (Posix)          enum string pathSeparator = ":";
-else version (WASI)          enum string pathSeparator = ":";
+else version (WASI)      enum string pathSeparator = ":";
 else version (Windows)   enum string pathSeparator = ";";
 else static assert(0, "unsupported platform");
 
@@ -2601,7 +2601,7 @@ if (isRandomAccessRange!R && isSomeChar!(ElementType!R) ||
     if (path.length >= 1 && isDirSeparator(path[0])) return true;
     version (Posix)         return false;
     else version (Windows)  return isAbsolute!(BaseOf!R)(path);
-    else version (WASI) return false;
+    else version (WASI)     return false;
 }
 
 ///
@@ -2775,20 +2775,12 @@ else version (Posix)
 string absolutePath(return scope const string path, lazy string base = getcwd())
     @safe pure
 {
-    version (WASI)
-    {
-        import core.sys.wasi.missing;
-        mixin WASIError;
-        assert(0, wasi_error);
-    }
-    else {
-        import std.array : array;
-        if (path.empty)  return null;
-        if (isAbsolute(path))  return path;
-        auto baseVar = base;
-        if (!isAbsolute(baseVar)) throw new Exception("Base directory must be absolute");
-        return chainPath(baseVar, path).array;
-    }
+    import std.array : array;
+    if (path.empty)  return null;
+    if (isAbsolute(path))  return path;
+    auto baseVar = base;
+    if (!isAbsolute(baseVar)) throw new Exception("Base directory must be absolute");
+    return chainPath(baseVar, path).array;
 }
 
 ///

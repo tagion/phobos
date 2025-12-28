@@ -37,21 +37,6 @@ import std.traits :  isFloatingPoint, isIntegral, isSigned, isUnsigned, Largest,
 static import core.math;
 static import core.stdc.math;
 
-version (LDC)
-{
-    import ldc.intrinsics;
-
-    version (CRuntime_Microsoft) version = LDC_MSVCRT;
-
-    version (LDC_MSVCRT)   {}
-    else version (Android) {}
-    else
-    {
-        version (X86)    version = INLINE_YL2X;
-        version (X86_64) version = INLINE_YL2X;
-    }
-}
-
 version (DigitalMars)
 {
     version (OSX) { }             // macOS 13 (M1) has issues emulating instruction
@@ -61,9 +46,7 @@ version (DigitalMars)
 version (D_InlineAsm_X86)    version = InlineAsm_X86_Any;
 version (D_InlineAsm_X86_64) version = InlineAsm_X86_Any;
 
-version (LDC_MSVCRT)   {}
-else version (Android) {}
-else version (InlineAsm_X86_Any) version = InlineAsm_X87;
+version (InlineAsm_X86_Any) version = InlineAsm_X87;
 version (InlineAsm_X87)
 {
     static assert(real.mant_dig == 64);
@@ -82,17 +65,6 @@ version (D_HardFloat)
 Unqual!F pow(F, G)(F x, G n) @nogc @trusted pure nothrow
 if (isFloatingPoint!(F) && isIntegral!(G))
 {
-  version (none)
-  {
-    // LDC: Leads to linking error on MSVC x64 as the intrinsic maps to
-    // MSVC++ function `pow(double/float, int)` (a C++ template for
-    // Visual Studio 2015).
-    // Most likely not worth the effort anyway (and hindering CTFE).
-    pragma(inline, true);
-    return llvm_powi!(Unqual!F)(x, cast(int) n);
-  }
-  else
-  {
     import std.traits : Unsigned;
 
     real p = 1.0, v = void;
@@ -131,7 +103,6 @@ if (isFloatingPoint!(F) && isIntegral!(G))
         v *= v;
     }
     return p;
-  } // !none
 }
 
 ///
@@ -451,229 +422,7 @@ if (isIntegral!I && isFloatingPoint!F)
 Unqual!(Largest!(F, G)) pow(F, G)(F x, G y) @nogc @trusted pure nothrow
 if (isFloatingPoint!(F) && isFloatingPoint!(G))
 {
-<<<<<<< HEAD
-    import core.math : fabs, sqrt;
-    import std.math.traits : isInfinity, isNaN, signbit;
-
-    alias Float = typeof(return);
-
-  version (none) // LDC FIXME: Use of this LLVM intrinsic causes a unit test failure
-  {
-    pragma(inline, true);
-    return llvm_pow!(Float)(x, y);
-  }
-  else
-  {
-    static real impl(real x, real y) @nogc pure nothrow
-    {
-        // Special cases.
-        if (isNaN(y))
-            return y;
-        if (isNaN(x) && y != 0.0)
-            return x;
-
-        // Even if x is NaN.
-        if (y == 0.0)
-            return 1.0;
-        if (y == 1.0)
-            return x;
-
-        if (isInfinity(y))
-        {
-            if (isInfinity(x))
-            {
-                if (!signbit(y) && !signbit(x))
-                    return F.infinity;
-                else
-                    return F.nan;
-            }
-            else if (fabs(x) > 1)
-            {
-                if (signbit(y))
-                    return +0.0;
-                else
-                    return F.infinity;
-            }
-            else if (fabs(x) == 1)
-            {
-                return F.nan;
-            }
-            else // < 1
-            {
-                if (signbit(y))
-                    return F.infinity;
-                else
-                    return +0.0;
-            }
-        }
-        if (isInfinity(x))
-        {
-            if (signbit(x))
-            {
-                long i = cast(long) y;
-                if (y > 0.0)
-                {
-                    if (i == y && i & 1)
-                        return -F.infinity;
-                    else if (i == y)
-                        return F.infinity;
-                    else
-                        return -F.nan;
-                }
-                else if (y < 0.0)
-                {
-                    if (i == y && i & 1)
-                        return -0.0;
-                    else if (i == y)
-                        return +0.0;
-                    else
-                        return F.nan;
-                }
-            }
-            else
-            {
-                if (y > 0.0)
-                    return F.infinity;
-                else if (y < 0.0)
-                    return +0.0;
-            }
-        }
-
-        if (x == 0.0)
-        {
-            if (signbit(x))
-            {
-                long i = cast(long) y;
-                if (y > 0.0)
-                {
-                    if (i == y && i & 1)
-                        return -0.0;
-                    else
-                        return +0.0;
-                }
-                else if (y < 0.0)
-                {
-                    if (i == y && i & 1)
-                        return -F.infinity;
-                    else
-                        return F.infinity;
-                }
-            }
-            else
-            {
-                if (y > 0.0)
-                    return +0.0;
-                else if (y < 0.0)
-                    return F.infinity;
-            }
-        }
-        if (x == 1.0)
-            return 1.0;
-
-        if (y >= F.max)
-        {
-            if ((x > 0.0 && x < 1.0) || (x > -1.0 && x < 0.0))
-                return 0.0;
-            if (x > 1.0 || x < -1.0)
-                return F.infinity;
-        }
-        if (y <= -F.max)
-        {
-            if ((x > 0.0 && x < 1.0) || (x > -1.0 && x < 0.0))
-                return F.infinity;
-            if (x > 1.0 || x < -1.0)
-                return 0.0;
-        }
-
-        if (x >= F.max)
-        {
-            if (y > 0.0)
-                return F.infinity;
-            else
-                return 0.0;
-        }
-        if (x <= -F.max)
-        {
-            long i = cast(long) y;
-            if (y > 0.0)
-            {
-                if (i == y && i & 1)
-                    return -F.infinity;
-                else
-                    return F.infinity;
-            }
-            else if (y < 0.0)
-            {
-                if (i == y && i & 1)
-                    return -0.0;
-                else
-                    return +0.0;
-            }
-        }
-
-        // Integer power of x.
-        long iy = cast(long) y;
-        if (iy == y && fabs(y) < 32_768.0)
-            return pow(x, iy);
-
-        real sign = 1.0;
-        if (x < 0)
-        {
-            // Result is real only if y is an integer
-            // Check for a non-zero fractional part
-            enum maxOdd = pow(2.0L, real.mant_dig) - 1.0L;
-            static if (maxOdd > ulong.max)
-            {
-                // Generic method, for any FP type
-                import std.math.rounding : floor;
-                if (floor(y) != y)
-                    return sqrt(x); // Complex result -- create a NaN
-
-                const hy = 0.5 * y;
-                if (floor(hy) != hy)
-                    sign = -1.0;
-            }
-            else
-            {
-                // Much faster, if ulong has enough precision
-                const absY = fabs(y);
-                if (absY <= maxOdd)
-                {
-                    const uy = cast(ulong) absY;
-                    if (uy != absY)
-                        return sqrt(x); // Complex result -- create a NaN
-
-                    if (uy & 1)
-                        sign = -1.0;
-                }
-            }
-            x = -x;
-        }
-        version (INLINE_YL2X)
-        {
-            // If x > 0, x ^^ y == 2 ^^ ( y * log2(x) )
-            // TODO: This is not accurate in practice. A fast and accurate
-            // (though complicated) method is described in:
-            // "An efficient rounding boundary test for pow(x, y)
-            // in double precision", C.Q. Lauter and V. Lefèvre, INRIA (2007).
-            return sign * exp2( core.math.yl2x(x, y) );
-        }
-        else
-        {
-            // If x > 0, x ^^ y == 2 ^^ ( y * log2(x) )
-            // TODO: This is not accurate in practice. A fast and accurate
-            // (though complicated) method is described in:
-            // "An efficient rounding boundary test for pow(x, y)
-            // in double precision", C.Q. Lauter and V. Lefèvre, INRIA (2007).
-            Float w = exp2(y * log2(x));
-            return sign * w;
-        }
-    }
-    return impl(x, y);
-  } // !none
-=======
     return _powImpl(x, y);
->>>>>>> master
 }
 
 ///
@@ -798,8 +547,7 @@ if (isFloatingPoint!(F) && isFloatingPoint!(G))
     // boundary cases. Note that epsilon == 2^^-n for some n,
     // so 1/epsilon == 2^^n is always even.
     assert(pow(-1.0L, 1/real.epsilon - 1.0L) == -1.0L);
-    static if (LLVM_version >= 1300) { /* LDC: on x86, yields -1 with enabled optimizations */ } else
-        assert(pow(-1.0L, 1/real.epsilon) == 1.0L);
+    assert(pow(-1.0L, 1/real.epsilon) == 1.0L);
     assert(isNaN(pow(-1.0L, 1/real.epsilon-0.5L)));
     assert(isNaN(pow(-1.0L, -1/real.epsilon+0.5L)));
 
@@ -1229,18 +977,6 @@ if (isUnsigned!F && isUnsigned!G && isUnsigned!H)
  *    $(TR $(TD $(NAN))        $(TD $(NAN))    )
  *  )
  */
-version (none) // LDC FIXME: Use of this LLVM intrinsic causes a unit test failure
-{
-    pragma(inline, true):
-    real   exp(real   x) @safe pure nothrow @nogc { return llvm_exp(x); }
-    ///ditto
-    double exp(double x) @safe pure nothrow @nogc { return llvm_exp(x); }
-    ///ditto
-    float  exp(float  x) @safe pure nothrow @nogc { return llvm_exp(x); }
-}
-else
-{
-
 pragma(inline, true)
 real exp(real x) @trusted pure nothrow @nogc // TODO: @safe
 {
@@ -1264,8 +1000,6 @@ double exp(double x) @safe pure nothrow @nogc { return __ctfe ? cast(double) exp
 /// ditto
 pragma(inline, true)
 float exp(float x) @safe pure nothrow @nogc { return __ctfe ? cast(float) exp(cast(real) x) : expImpl(x); }
-
-} // !none
 
 ///
 @safe unittest
@@ -1949,18 +1683,6 @@ private T expm1Impl(T)(T x) @safe pure nothrow @nogc
  *    $(TR $(TD $(NAN))        $(TD $(NAN))    )
  *  )
  */
-version (none) // LDC FIXME: Use of this LLVM intrinsic causes a unit test failure
-{
-    pragma(inline, true):
-    real   exp2(real   x) @safe pure nothrow @nogc { return llvm_exp2(x); }
-    ///ditto
-    double exp2(double x) @safe pure nothrow @nogc { return llvm_exp2(x); }
-    ///ditto
-    float  exp2(float  x) @safe pure nothrow @nogc { return llvm_exp2(x); }
-}
-else
-{
-
 pragma(inline, true)
 real exp2(real x) @nogc @trusted pure nothrow // TODO: @safe
 {
@@ -1979,8 +1701,6 @@ double exp2(double x) @nogc @safe pure nothrow { return __ctfe ? cast(double) ex
 /// ditto
 pragma(inline, true)
 float exp2(float x) @nogc @safe pure nothrow { return __ctfe ? cast(float) exp2(cast(real) x) : exp2Impl(x); }
-
-} // !none
 
 ///
 @safe unittest

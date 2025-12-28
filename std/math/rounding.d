@@ -25,16 +25,10 @@ static import core.stdc.math;
 
 import std.traits : isFloatingPoint, isIntegral, Unqual;
 
-version (LDC) import ldc.intrinsics;
-
 version (D_InlineAsm_X86)    version = InlineAsm_X86_Any;
 version (D_InlineAsm_X86_64) version = InlineAsm_X86_Any;
 
-version (LDC) version (CRuntime_Microsoft) version = LDC_MSVCRT;
-
-version (LDC_MSVCRT)   {}
-else version (Android) {}
-else version (InlineAsm_X86_Any) version = InlineAsm_X87;
+version (InlineAsm_X86_Any) version = InlineAsm_X87;
 version (InlineAsm_X87)
 {
     static assert(real.mant_dig == 64);
@@ -45,14 +39,9 @@ version (InlineAsm_X87)
  * Returns the value of x rounded upward to the next integer
  * (toward positive infinity).
  */
-pragma(inline, true) // LDC
 real ceil(real x) @trusted pure nothrow @nogc
 {
-    version (LDC)
-    {
-        return llvm_ceil(x);
-    }
-    else version (InlineAsm_X87_MSVC)
+    version (InlineAsm_X87_MSVC)
     {
         version (X86_64)
         {
@@ -126,15 +115,8 @@ real ceil(real x) @trusted pure nothrow @nogc
 }
 
 /// ditto
-pragma(inline, true) // LDC
 double ceil(double x) @trusted pure nothrow @nogc
 {
-  version (LDC)
-  {
-    return llvm_ceil(x);
-  }
-  else
-  {
     import std.math.traits : isInfinity, isNaN;
 
     // Special cases.
@@ -146,7 +128,6 @@ double ceil(double x) @trusted pure nothrow @nogc
         y += 1.0;
 
     return y;
-  }
 }
 
 @safe pure nothrow @nogc unittest
@@ -166,15 +147,8 @@ double ceil(double x) @trusted pure nothrow @nogc
 }
 
 /// ditto
-pragma(inline, true) // LDC
 float ceil(float x) @trusted pure nothrow @nogc
 {
-  version (LDC)
-  {
-    return llvm_ceil(x);
-  }
-  else
-  {
     import std.math.traits : isInfinity, isNaN;
 
     // Special cases.
@@ -186,7 +160,6 @@ float ceil(float x) @trusted pure nothrow @nogc
         y += 1.0;
 
     return y;
-  }
 }
 
 @safe pure nothrow @nogc unittest
@@ -209,14 +182,9 @@ float ceil(float x) @trusted pure nothrow @nogc
  * Returns the value of x rounded downward to the next integer
  * (toward negative infinity).
  */
-pragma(inline, true) // LDC
 real floor(real x) @trusted pure nothrow @nogc
 {
-    version (LDC)
-    {
-        return llvm_floor(x);
-    }
-    else version (InlineAsm_X87_MSVC)
+    version (InlineAsm_X87_MSVC)
     {
         version (X86_64)
         {
@@ -288,15 +256,8 @@ real floor(real x) @trusted pure nothrow @nogc
 }
 
 /// ditto
-pragma(inline, true) // LDC
 double floor(double x) @trusted pure nothrow @nogc
 {
-  version (LDC)
-  {
-    return llvm_floor(x);
-  }
-  else
-  {
     import std.math.traits : isInfinity, isNaN;
 
     // Special cases.
@@ -304,7 +265,6 @@ double floor(double x) @trusted pure nothrow @nogc
         return x;
 
     return floorImpl(x);
-  }
 }
 
 @safe pure nothrow @nogc unittest
@@ -326,15 +286,8 @@ double floor(double x) @trusted pure nothrow @nogc
 }
 
 /// ditto
-pragma(inline, true) // LDC
 float floor(float x) @trusted pure nothrow @nogc
 {
-  version (LDC)
-  {
-    return llvm_floor(x);
-  }
-  else
-  {
     import std.math.traits : isInfinity, isNaN;
 
     // Special cases.
@@ -342,7 +295,6 @@ float floor(float x) @trusted pure nothrow @nogc
         return x;
 
     return floorImpl(x);
-  }
 }
 
 @safe pure nothrow @nogc unittest
@@ -484,23 +436,11 @@ if (is(typeof(rfunc(F.init)) : F) && isFloatingPoint!F)
  * Unlike the rint functions, nearbyint does not raise the
  * FE_INEXACT exception.
  */
-version (LDC)
-{
-    pragma(inline, true):
-    real   nearbyint(real   x) @safe pure nothrow @nogc { return llvm_nearbyint(x); }
-    //double nearbyint(double x) @safe pure nothrow @nogc { return llvm_nearbyint(x); }
-    //float  nearbyint(float  x) @safe pure nothrow @nogc { return llvm_nearbyint(x); }
-}
-else
-{
-
 pragma(inline, true)
 real nearbyint(real x) @safe pure nothrow @nogc
 {
     return core.stdc.math.nearbyintl(x);
 }
-
-} // !LDC
 
 ///
 @safe pure unittest
@@ -552,7 +492,6 @@ float rint(float x) @safe pure nothrow @nogc
 
     version (IeeeFlagsSupport) resetIeeeFlags();
     assert(rint(0.4) == 0);
-    version (LDC) { /* inexact bit not set with enabled optimizations */ } else
     version (IeeeFlagsSupport) assert(ieeeFlags.inexact);
 
     assert(rint(0.5) == 0);
@@ -790,16 +729,6 @@ static if (real.mant_dig >= long.sizeof * 8)
  * Returns:
  *     A `real`.
  */
-version (LDC)
-{
-    pragma(inline, true):
-    real   round(real   x) @safe pure nothrow @nogc { return llvm_round(x); }
-    //double round(double x) @safe pure nothrow @nogc { return llvm_round(x); }
-    //float  round(float  x) @safe pure nothrow @nogc { return llvm_round(x); }
-}
-else
-{
-
 auto round(real x) @trusted nothrow @nogc
 {
     version (CRuntime_Microsoft)
@@ -819,8 +748,6 @@ auto round(real x) @trusted nothrow @nogc
         return core.stdc.math.roundl(x);
     }
 }
-
-} // !LDC
 
 ///
 @safe nothrow @nogc unittest
@@ -864,16 +791,6 @@ long lround(real x) @trusted nothrow @nogc
  This is also known as "chop" rounding.
  `pure` on all platforms.
  */
-version (LDC)
-{
-    pragma(inline, true):
-    real   trunc(real   x) @safe pure nothrow @nogc { return llvm_trunc(x); }
-    //double trunc(double x) @safe pure nothrow @nogc { return llvm_trunc(x); }
-    //float  trunc(float  x) @safe pure nothrow @nogc { return llvm_trunc(x); }
-}
-else
-{
-
 real trunc(real x) @trusted nothrow @nogc pure
 {
     version (InlineAsm_X87_MSVC)
@@ -921,8 +838,6 @@ real trunc(real x) @trusted nothrow @nogc pure
         return core.stdc.math.truncl(x);
     }
 }
-
-} // !LDC
 
 ///
 @safe pure unittest

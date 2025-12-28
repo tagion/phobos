@@ -445,7 +445,6 @@ static:
 private:
     version (Windows) alias OSChar = WCHAR;
     else version (Posix) alias OSChar = char;
-    else version (WASI) alias OSChar = char;
 
     // Retrieves the environment variable. Calls `sink` with a
     // temporary buffer of OS characters, or `null` if the variable
@@ -3728,7 +3727,7 @@ $(LREF nativeShell).
 {
     version (Windows)      return environment.get("COMSPEC", nativeShell);
     else version (Posix)   return environment.get("SHELL", nativeShell);
-    else version (WASI)   return environment.get("SHELL", nativeShell);
+    else version (WASI)    return environment.get("SHELL", nativeShell);
 }
 
 /**
@@ -3753,7 +3752,7 @@ This function returns `"cmd.exe"` on Windows, `"/bin/sh"` on POSIX, and
 // A command-line switch that indicates to the shell that it should
 // interpret the following argument as a command to be executed.
 version (Posix)   private immutable string shellSwitch = "-c";
-version (WASI)   private immutable string shellSwitch = "-c";
+version (WASI)    private immutable string shellSwitch = "-c";
 version (Windows) private immutable string shellSwitch = "/C";
 
 // Unittest support code:  TestScript takes a string that contains a
@@ -4603,12 +4602,6 @@ version (Posix)
 else version (Windows)
 {
     return execvpe(pathname.tempCString(), toAStringz(argv), toAStringz(envp));
-}
-else version (WASI)
-{
-    import core.sys.wasi.missing;
-    mixin WASIError;
-    assert(0, wasi_error);
 }
 else
 {
