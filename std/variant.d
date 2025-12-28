@@ -382,7 +382,7 @@ private:
                         static if (isStaticArray!A && isDynamicArray!T)
                         {
                             auto this_ = (*src)[];
-                            emplaceRef(*cast(Unqual!T*) zat, cast(Unqual!T) this_);
+                            emplaceRef(*cast(Unqual!T*) zat, cast() cast(T) this_);
                         }
                         else
                         {
@@ -658,7 +658,7 @@ public:
 
     /// Allows assignment from a subset algebraic type
     this(T : VariantN!(tsize, Types), size_t tsize, Types...)(T value)
-        if (!is(T : VariantN) && Types.length > 0 && allSatisfy!(allowed, Types))
+    if (!is(T : VariantN) && Types.length > 0 && allSatisfy!(allowed, Types))
     {
         opAssign(value);
     }
@@ -735,7 +735,7 @@ public:
 
     // Allow assignment from another variant which is a subset of this one
     VariantN opAssign(T : VariantN!(tsize, Types), size_t tsize, Types...)(T rhs)
-        if (!is(T : VariantN) && Types.length > 0 && allSatisfy!(allowed, Types))
+    if (!is(T : VariantN) && Types.length > 0 && allSatisfy!(allowed, Types))
     {
         // discover which type rhs is actually storing
         foreach (V; T.AllowedTypes)
@@ -850,7 +850,14 @@ public:
      */
     @property inout(T) get(T)() inout
     {
-        inout(T) result = void;
+        static union SupressDestructor {
+            T val;
+        }
+
+        /* If this function fails and it throws, copy elision will not run and the destructor might be called.
+         * But since this value is void initialized, this is undesireable.
+         */
+        inout(SupressDestructor) result = void;
         static if (is(T == shared))
             alias R = shared Unqual!T;
         else
@@ -861,7 +868,7 @@ public:
         {
             throw new VariantException(type, typeid(T));
         }
-        return result;
+        return result.val;
     }
 
     /// Ditto
@@ -1098,7 +1105,7 @@ public:
     { return opLogic!(T, op)(lhs); }
     ///ditto
     VariantN opBinary(string op, T)(T rhs)
-        if (op == "~")
+    if (op == "~")
     {
         auto temp = this;
         temp ~= rhs;
@@ -1191,7 +1198,8 @@ public:
        If the `VariantN` contains an array, applies `dg` to each
        element of the array in turn. Otherwise, throws an exception.
      */
-    int opApply(Delegate)(scope Delegate dg) if (is(Delegate == delegate))
+    int opApply(Delegate)(scope Delegate dg)
+    if (is(Delegate == delegate))
     {
         alias A = Parameters!(Delegate)[0];
         if (type == typeid(A[]))
@@ -2410,7 +2418,7 @@ if (Handlers.length > 0)
 {
     ///
     auto visit(VariantType)(VariantType variant)
-        if (isAlgebraic!VariantType)
+    if (isAlgebraic!VariantType)
     {
         return visitImpl!(true, VariantType, Handlers)(variant);
     }
@@ -2553,7 +2561,7 @@ if (Handlers.length > 0)
 {
     ///
     auto tryVisit(VariantType)(VariantType variant)
-        if (isAlgebraic!VariantType)
+    if (isAlgebraic!VariantType)
     {
         return visitImpl!(false, VariantType, Handlers)(variant);
     }
@@ -3253,4 +3261,45 @@ if (isAlgebraic!VariantType && Handler.length > 0)
 {
     immutable aa = ["0": 0];
     auto v = Variant(aa); // compile error
+}
+
+// https://github.com/dlang/phobos/issues/9585
+// Verify that alignment is respected
+@safe unittest
+{
+    static struct Foo { double x; }
+    alias AFoo1 = Algebraic!(Foo);
+    static assert(AFoo1.alignof >= double.alignof);
+
+    // Algebraic using a function pointer is an implementation detail. If test fails, this is safe to change
+    enum FP_SIZE = (int function()).sizeof;
+    static assert(AFoo1.sizeof >= double.sizeof + FP_SIZE);
+}
+
+// https://github.com/dlang/phobos/issues/10518
+@system unittest
+{
+    import std.exception : assertThrown;
+
+    struct Huge {
+        real a, b, c, d, e, f, g;
+    }
+    Huge h = {1,1,1,1,1,1,1};
+    Variant variant = Variant([
+            "one": Variant(1),
+    ]);
+    // Testing that this doesn't segfault. Future work might make enable this
+    assertThrown!VariantException(variant["three"] = 3);
+    assertThrown!VariantException(variant["four"] = Variant(4));
+    /* Storing huge works too, value will moved to the heap
+    * Testing this as a regression test here as the AA handling code is still somewhat brittle and might add changes
+    * that depend payload size in the future
+    */
+    assertThrown!VariantException(variant["huge"] = Variant(h));
+    /+
+    assert(variant["one"] == Variant(1));
+    assert(variant["three"] == Variant(3));
+    assert(variant["three"] == 3);
+    assert(variant["huge"] == Variant(h));
+    +/
 }

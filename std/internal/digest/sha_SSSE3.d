@@ -30,8 +30,6 @@ else version (D_InlineAsm_X86_64)
     private version = _64Bit;
 }
 
-// LDC: misc. asm adaptations due to non-reversed extern(D) parameters!
-
 /*
  * The idea is quite simple. The SHA-1 specification defines the following message schedule:
  *     W[i] = (W[i-3] ^ W[i-8]  ^ W[i-14] ^ W[i-16]) rol 1
@@ -96,8 +94,8 @@ version (USE_SSSE3)
     version (_32Bit)
     {
         private immutable string SP = "ESP";
-        private immutable string STATE_PTR = "EAX";
-        private immutable string BUFFER_PTR = "EBX";
+        private immutable string BUFFER_PTR = "EAX";
+        private immutable string STATE_PTR = "EBX";
 
         // Control byte for shuffle instruction (only used in round 0-15)
         private immutable string X_SHUFFLECTL = "XMM6";
@@ -108,8 +106,8 @@ version (USE_SSSE3)
     version (_64Bit)
     {
         private immutable string SP = "RSP";
-        private immutable string STATE_PTR = "R8";
         private immutable string BUFFER_PTR = "R9";
+        private immutable string STATE_PTR = "R8";
         private immutable string CONSTANTS_PTR = "R10";
 
         // Registers for temporary results (XMM10 and XMM11 are also used temporary)
@@ -555,11 +553,11 @@ version (USE_SSSE3)
         {
             /*
              * Parameters:
-             *   EAX contains pointer to state
+             *   EAX contains pointer to input buffer
              *
              * Stack layout as follows:
              * +----------------+
-             * | ptr to buffer  |
+             * | ptr to state   |
              * +----------------+
              * | return address |
              * +----------------+
@@ -582,20 +580,20 @@ version (USE_SSSE3)
              * | old ESP        | <- ESP
              * +----------------+
              */
-            static assert(STATE_PTR == "EAX");
-            static assert(BUFFER_PTR == "EBX");
+            static assert(BUFFER_PTR == "EAX");
+            static assert(STATE_PTR == "EBX");
             return [// Save registers according to calling convention
                     "push EBP",
                     "push ESI",
                     "push EDI",
                     "push EBX",
                     // Load parameters
-                    "mov "~BUFFER_PTR~", [ESP + 5*4]", //pointer to input buffer
+                    "mov EBX, [ESP + 5*4]", //pointer to state
                     // Align stack
                     "mov EBP, ESP",
                     "sub ESP, 4*16 + 8*16",
                     "and ESP, 0xffff_fff0",
-                    "push "~STATE_PTR,
+                    "push EBX",
                     "push EBP",
             ];
         }
@@ -603,9 +601,9 @@ version (USE_SSSE3)
         {
             /*
             * Parameters:
-            *   RCX contains pointer to state
+            *   R8 contains pointer to state
             *   RDX contains pointer to input buffer
-            *   R8  contains pointer to constants
+            *   RCX contains pointer to constants
             *
             * Stack layout as follows:
             * +----------------+
@@ -633,9 +631,9 @@ version (USE_SSSE3)
                     "push RSI",
                     "push RDI",
                     // Save parameters
-                    "mov "~CONSTANTS_PTR~", R8", //pointer to constants to avoid absolute addressing
-                    "mov "~STATE_PTR~", RCX", //pointer to state
+                    "mov "~STATE_PTR~", R8", //pointer to state
                     "mov "~BUFFER_PTR~", RDX", //pointer to buffer
+                    "mov "~CONSTANTS_PTR~", RCX", //pointer to constants to avoid absolute addressing
                     // Align stack
                     "sub RSP, 4*16+8+8*16",
                     "movdqa [RSP+4*16], XMM6",
@@ -652,9 +650,9 @@ version (USE_SSSE3)
         {
             /*
              * Parameters:
-             *   RDI contains pointer to state
+             *   RDX contains pointer to state
              *   RSI contains pointer to input buffer
-             *   RDX contains pointer to constants
+             *   RDI contains pointer to constants
              *
              * Stack layout as follows:
              * +----------------+
@@ -674,9 +672,9 @@ version (USE_SSSE3)
                     "push RBP",
                     "push RBX",
                     // Save parameters
-                    "mov "~STATE_PTR~", RDI", //pointer to state
+                    "mov "~STATE_PTR~", RDX", //pointer to state
                     "mov "~BUFFER_PTR~", RSI", //pointer to buffer
-                    "mov "~CONSTANTS_PTR~", RDX", //pointer to constants to avoid absolute addressing
+                    "mov "~CONSTANTS_PTR~", RDI", //pointer to constants to avoid absolute addressing
                     // Align stack
                     "sub RSP, 4*16+8",
             ];

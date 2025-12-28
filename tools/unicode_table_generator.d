@@ -31,10 +31,10 @@ module std.unicode_table_generator;
 // this shouldn't be in std package, but stuff is package'd as that in std.uni.
 
 /// Directory in which unicode files are downloaded
-enum unicodeDir = "ucd-15-1-0/";
+enum unicodeDir = "ucd-17-0-0/";
 
 /// Url from which unicode files are downloaded
-enum unicodeBaseUrl = "https://www.unicode.org/Public/15.1.0/ucd/";
+enum unicodeBaseUrl = "https://www.unicode.org/Public/17.0.0/ucd/";
 
 /// Where to put generated files
 enum outputDir = "../std/internal/";
@@ -898,7 +898,7 @@ void writeCaseFolding(File sink)
 
         writeln("SCE simpleCaseTable(size_t i)");
         writeln("{");
-        writef("static immutable uint[] t = cast(immutable uint[]) x\"");
+        writef("static immutable uint[] t = x\"");
         foreach (i, v; simpleTable)
         {
             if (i % 12 == 0) writeln();
@@ -915,7 +915,7 @@ void writeCaseFolding(File sink)
         writeln("}");
         writeln("@property FCE fullCaseTable(size_t index) nothrow @nogc @safe pure");
         writeln("{");
-        writef("static immutable ulong[] t = cast(immutable ulong[]) x\"");
+        writef("static immutable ulong[] t = x\"");
         int[4] maxS = 0;
         foreach (i, v; fullTable)
         {
@@ -1162,7 +1162,7 @@ void writeFunctions(File sink)
 void writeUintArray(T:dchar)(File sink, const T[] tab)
 {
     size_t lineCount = 1;
-    sink.write("cast(immutable uint[]) x\"");
+    sink.write("x\"");
     foreach (i, elem; tab)
     {
         if ((i % 12) == 0)
@@ -1461,7 +1461,7 @@ void storeTrie(T, O)(T trie, O sink)
     import std.format.write : formattedWrite;
     void store(size_t[] arr)
     {
-        formattedWrite(sink, "cast(immutable size_t[]) x\"");
+        formattedWrite(sink, "x\"");
         foreach (i; 0 .. arr.length)
         {
             static if (size_t.sizeof == 8)

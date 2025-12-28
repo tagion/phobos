@@ -110,13 +110,11 @@ else version (Posix)
 {
     import core.sys.posix.dirent, core.sys.posix.fcntl, core.sys.posix.sys.stat,
         core.sys.posix.sys.time, core.sys.posix.unistd, core.sys.posix.utime;
-    import core.sys.posix.dirent : dirent;
 }
 else version (WASI)
 {
     import core.sys.wasi.dirent, core.sys.wasi.sys.stat, core.sys.wasi.sys.time;
     import core.sys.wasi.time, core.sys.wasi.fcntl;
-    import core.sys.wasi.dirent : dirent;
 }
 else
     static assert(false, "Module " ~ .stringof ~ " not implemented for this OS.");
@@ -127,10 +125,6 @@ version (Windows)
     private alias FSChar = WCHAR;       // WCHAR can be aliased to wchar or wchar_t
 }
 else version (Posix)
-{
-    private alias FSChar = char;
-}
-else version (WASI)
 {
     private alias FSChar = char;
 }
@@ -1110,6 +1104,7 @@ private void removeImpl(scope const(char)[] name, scope const(FSChar)* namez) @t
 @safe unittest
 {
     import std.exception : collectExceptionMsg, assertThrown;
+    import std.algorithm.searching : startsWith;
 
     string filename = null; // e.g. as returned by File.tmpfile.name
 
@@ -1117,12 +1112,10 @@ private void removeImpl(scope const(char)[] name, scope const(FSChar)* namez) @t
     {
         // exact exception message is OS-dependent
         auto msg = filename.remove.collectExceptionMsg!FileException;
-        assert("Failed to remove file (null): Bad address" == msg, msg);
+        assert(msg.startsWith("Failed to remove file (null):"), msg);
     }
     else version (Windows)
     {
-        import std.algorithm.searching : startsWith;
-
         // don't test exact message on windows, it's language dependent
         auto msg = filename.remove.collectExceptionMsg!FileException;
         assert(msg.startsWith("(null):"), msg);
@@ -2423,7 +2416,6 @@ if (isConvertibleToString!R)
 }
 
 ///
-
 @safe unittest
 {
     import std.exception : assertThrown;
@@ -4039,7 +4031,7 @@ else // version(Posix) || version(WASI)
             _dTypeSet = false;
         }
 
-        private this(string path, dirent* fd) @safe
+        private this(string path, core.sys.posix.dirent.dirent* fd) @safe
         {
             import std.path : buildPath;
 
@@ -4159,12 +4151,10 @@ else // version(Posix) || version(WASI)
          +/
         void _ensureStatDone() @trusted scope
         {
-            import std.exception : enforce;
-
             if (_didStat)
                 return;
 
-            enforce(stat(_name.tempCString(), &_statBuf) == 0,
+            cenforce(stat(_name.tempCString(), &_statBuf) == 0,
                     "Failed to stat file `" ~ _name ~ "'");
 
             _didStat = true;
@@ -4201,13 +4191,11 @@ else // version(Posix) || version(WASI)
          +/
         void _ensureLStatDone() @trusted scope
         {
-            import std.exception : enforce;
-
             if (_didLStat)
                 return;
 
             stat_t statbuf = void;
-            enforce(lstat(_name.tempCString(), &statbuf) == 0,
+            cenforce(lstat(_name.tempCString(), &statbuf) == 0,
                 "Failed to stat file `" ~ _name ~ "'");
 
             _lstatMode = statbuf.st_mode;
@@ -4289,12 +4277,12 @@ else // version(Posix) || version(WASI)
                 assert(!de.isFile);
                 assert(!de.isDir);
                 assert(de.isSymlink);
-                assertThrown(de.size);
-                assertThrown(de.timeStatusChanged);
-                assertThrown(de.timeLastAccessed);
-                assertThrown(de.timeLastModified);
-                assertThrown(de.attributes);
-                assertThrown(de.statBuf);
+                assertThrown!FileException(de.size);
+                assertThrown!FileException(de.timeStatusChanged);
+                assertThrown!FileException(de.timeLastAccessed);
+                assertThrown!FileException(de.timeLastModified);
+                assertThrown!FileException(de.attributes);
+                assertThrown!FileException(de.statBuf);
                 assert(symfile.exists);
                 symfile.remove();
             }
@@ -4748,6 +4736,7 @@ private struct DirIteratorImpl
     DirEntry _cur;
     DirHandle[] _stack;
     DirEntry[] _stashed; //used in depth first mode
+    string _pathPrefix = null;
 
     //stack helpers
     void pushExtra(DirEntry de)
@@ -4903,20 +4892,12 @@ private struct DirIteratorImpl
         }
     }
 
-    this(R)(R pathname, SpanMode mode, bool followSymlink)
-        if (isSomeFiniteCharInputRange!R)
+    this(string pathname, SpanMode mode, bool followSymlink)
     {
         _mode = mode;
         _followSymlink = followSymlink;
 
-        static if (isNarrowString!R && is(immutable ElementEncodingType!R == immutable char))
-            alias pathnameStr = pathname;
-        else
-        {
-            import std.array : array;
-            string pathnameStr = pathname.array;
-        }
-        if (stepIn(pathnameStr))
+        if (stepIn(pathname))
         {
             if (_mode == SpanMode.depth)
                 while (mayStepIn())
@@ -5215,6 +5196,15 @@ auto dirEntries(bool useDIP1000 = dip1000Enabled)
 
     // https://issues.dlang.org/show_bug.cgi?id=15146
     dirEntries("", SpanMode.shallow).walkLength();
+
+    // https://github.com/dlang/phobos/issues/9584
+    string cwd = getcwd();
+    foreach (string entry; dirEntries(testdir, SpanMode.shallow))
+    {
+        if (entry.isDir)
+            chdir(entry);
+    }
+    chdir(cwd); // needed for the directories to be removed
 }
 
 /// Ditto

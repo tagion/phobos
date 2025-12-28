@@ -548,15 +548,7 @@ struct MurmurHash3(uint size /* 32 or 128 */ , uint opt = size_t.sizeof == 8 ? 6
                     else
                     {
                         Element[1] alignedCopy = void;
-                        version (LDC)
-                        {
-                            import ldc.intrinsics : llvm_memcpy;
-                            llvm_memcpy(alignedCopy.ptr, chunk.ptr, Element.sizeof, T.alignof);
-                        }
-                        else
-                        {
-                            (cast(T[]) alignedCopy)[] = chunk[];
-                        }
+                        (cast(T[]) alignedCopy)[] = chunk[];
                         putElement(alignedCopy[0]);
                     }
                 }

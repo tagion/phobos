@@ -2475,7 +2475,7 @@ public:
             this SysTime.
       +/
     T toUnixTime(T = time_t)() @safe const pure nothrow scope
-        if (is(T == int) || is(T == long))
+    if (is(T == int) || is(T == long))
     {
         return stdTimeToUnixTime!T(_stdTime);
     }
@@ -2833,7 +2833,7 @@ public:
                             causing the month to increment.
       +/
     ref SysTime add(string units)(long value, AllowDayOverflow allowOverflow = AllowDayOverflow.yes) @safe nothrow scope
-        if (units == "years" || units == "months")
+    if (units == "years" || units == "months")
     {
         auto hnsecs = adjTime;
         auto days = splitUnitsFromHNSecs!"days"(hnsecs) + 1;
@@ -4871,7 +4871,7 @@ public:
                     $(LREF SysTime).
       +/
     ref SysTime roll(string units)(long value) @safe nothrow scope
-        if (units == "days")
+    if (units == "days")
     {
         auto hnsecs = adjTime;
         auto gdays = splitUnitsFromHNSecs!"days"(hnsecs) + 1;
@@ -5236,7 +5236,7 @@ public:
 
     // Shares documentation with "days" version.
     ref SysTime roll(string units)(long value) @safe nothrow scope
-        if (units == "hours" || units == "minutes" || units == "seconds")
+    if (units == "hours" || units == "minutes" || units == "seconds")
     {
         try
         {
@@ -5912,7 +5912,7 @@ public:
 
     // Shares documentation with "days" version.
     ref SysTime roll(string units)(long value) @safe nothrow scope
-        if (units == "msecs" || units == "usecs" || units == "hnsecs")
+    if (units == "msecs" || units == "usecs" || units == "hnsecs")
     {
         auto hnsecs = adjTime;
         immutable days = splitUnitsFromHNSecs!"days"(hnsecs);
@@ -6342,6 +6342,7 @@ public:
         $(BOOKTABLE,
         $(TR $(TD SysTime) $(TD +) $(TD Duration) $(TD -->) $(TD SysTime))
         $(TR $(TD SysTime) $(TD -) $(TD Duration) $(TD -->) $(TD SysTime))
+        $(TR $(TD Duration) $(TD +) $(TD SysTime) $(TD -->) $(TD SysTime))
         )
 
         Params:
@@ -6349,12 +6350,19 @@ public:
                        this $(LREF SysTime).
       +/
     SysTime opBinary(string op)(Duration duration) @safe const pure nothrow return scope
-        if (op == "+" || op == "-")
+    if (op == "+" || op == "-")
     {
         SysTime retval = SysTime(this._stdTime, this._timezone);
         immutable hnsecs = duration.total!"hnsecs";
         mixin("retval._stdTime " ~ op ~ "= hnsecs;");
         return retval;
+    }
+
+    /// ditto
+    SysTime opBinaryRight(string op)(Duration duration) const @safe pure nothrow
+    if (op == "+")
+    {
+        return this + duration;
     }
 
     ///
@@ -6374,6 +6382,9 @@ public:
 
         assert(SysTime(DateTime(2016, 1, 1, 0, 59, 59)) - hours(1) ==
                SysTime(DateTime(2015, 12, 31, 23, 59, 59)));
+
+        assert(SysTime(DateTime(2015, 12, 31, 23, 59, 59)) + seconds(1) ==
+               seconds(1) + SysTime(DateTime(2015, 12, 31, 23, 59, 59)));
     }
 
     @safe unittest
@@ -6569,7 +6580,7 @@ public:
                        this $(LREF SysTime).
       +/
     ref SysTime opOpAssign(string op)(Duration duration) @safe pure nothrow scope
-        if (op == "+" || op == "-")
+    if (op == "+" || op == "-")
     {
         immutable hnsecs = duration.total!"hnsecs";
         mixin("_stdTime " ~ op ~ "= hnsecs;");
@@ -6773,7 +6784,7 @@ public:
         )
       +/
     Duration opBinary(string op)(SysTime rhs) @safe const pure nothrow scope
-        if (op == "-")
+    if (op == "-")
     {
         return dur!"hnsecs"(_stdTime - rhs._stdTime);
     }
@@ -8033,7 +8044,7 @@ public:
         Returns a $(REF Date,std,datetime,date) equivalent to this $(LREF SysTime).
       +/
     Date opCast(T)() @safe const nothrow scope
-        if (is(immutable T == immutable Date))
+    if (is(immutable T == immutable Date))
     {
         return Date(dayOfGregorianCal);
     }
@@ -8074,7 +8085,7 @@ public:
         $(LREF SysTime).
       +/
     DateTime opCast(T)() @safe const nothrow scope
-        if (is(immutable T == immutable DateTime))
+    if (is(immutable T == immutable DateTime))
     {
         try
         {
@@ -8140,7 +8151,7 @@ public:
         $(LREF SysTime).
       +/
     TimeOfDay opCast(T)() @safe const nothrow scope
-        if (is(immutable T == immutable TimeOfDay))
+    if (is(immutable T == immutable TimeOfDay))
     {
         try
         {
@@ -8197,7 +8208,7 @@ public:
     // should be allowed, and it doesn't work without this opCast() since opCast()
     // has already been defined for other types.
     SysTime opCast(T)() @safe const pure nothrow scope
-        if (is(immutable T == immutable SysTime))
+    if (is(immutable T == immutable SysTime))
     {
         return SysTime(_stdTime, _timezone);
     }
@@ -8840,7 +8851,7 @@ public:
             be valid.
       +/
     static SysTime fromISOString(S)(scope const S isoString, immutable TimeZone tz = null) @safe
-        if (isSomeString!S)
+    if (isSomeString!S)
     {
         import std.algorithm.searching : startsWith, find;
         import std.conv : to;
@@ -8920,7 +8931,7 @@ public:
             return retval;
         }
         catch (DateTimeException dte)
-            throw new DateTimeException(format("Invalid ISO String: %s", isoString));
+            throw new DateTimeException(format("Invalid format for SysTime.fromISOString: %s", isoString));
     }
 
     ///
@@ -9141,7 +9152,7 @@ public:
             be valid.
       +/
     static SysTime fromISOExtString(S)(scope const S isoExtString, immutable TimeZone tz = null) @safe
-        if (isSomeString!(S))
+    if (isSomeString!(S))
     {
         import std.algorithm.searching : countUntil, find;
         import std.conv : to;
@@ -9150,7 +9161,8 @@ public:
         auto str = strip(isoExtString);
 
         auto tIndex = str.indexOf('T');
-        enforce(tIndex != -1, new DateTimeException(format("Invalid ISO Extended String: %s", isoExtString)));
+        enforce!DateTimeException(tIndex != -1,
+                                  format("Invalid format for SysTime.fromISOExtString: %s", isoExtString));
 
         auto found = str[tIndex + 1 .. $].find('.', 'Z', '+', '-');
         auto dateTimeStr = str[0 .. $ - found[0].length];
@@ -9198,7 +9210,7 @@ public:
             return retval;
         }
         catch (DateTimeException dte)
-            throw new DateTimeException(format("Invalid ISO Extended String: %s", isoExtString));
+            throw new DateTimeException(format("Invalid format for SysTime.fromISOExtString: %s", isoExtString));
     }
 
     ///
@@ -9391,7 +9403,7 @@ public:
             be valid.
       +/
     static SysTime fromSimpleString(S)(scope const S simpleString, immutable TimeZone tz = null) @safe
-        if (isSomeString!(S))
+    if (isSomeString!(S))
     {
         import std.algorithm.searching : find;
         import std.conv : to;
@@ -9400,7 +9412,8 @@ public:
         auto str = strip(simpleString);
 
         auto spaceIndex = str.indexOf(' ');
-        enforce(spaceIndex != -1, new DateTimeException(format("Invalid Simple String: %s", simpleString)));
+        enforce!DateTimeException(spaceIndex != -1,
+                                  format("Invalid format for SysTime.fromSimpleString: %s", simpleString));
 
         auto found = str[spaceIndex + 1 .. $].find('.', 'Z', '+', '-');
         auto dateTimeStr = str[0 .. $ - found[0].length];
@@ -9448,7 +9461,7 @@ public:
             return retval;
         }
         catch (DateTimeException dte)
-            throw new DateTimeException(format("Invalid Simple String: %s", simpleString));
+            throw new DateTimeException(format("Invalid format for SysTime.fromSimpleString: %s", simpleString));
     }
 
     ///
@@ -11211,6 +11224,7 @@ if (isSomeString!S)
     import std.algorithm.searching : all;
     import std.ascii : isDigit;
     import std.conv : to;
+    import std.format : format;
     import std.string : representation;
 
     if (isoString.empty)
@@ -11218,10 +11232,11 @@ if (isSomeString!S)
 
     auto str = isoString.representation;
 
-    enforce(str[0] == '.', new DateTimeException("Invalid ISO String"));
+    enforce!DateTimeException(str[0] == '.', format("Invalid format for fracSecsFromISOString: %s", isoString));
     str.popFront();
 
-    enforce(!str.empty && all!isDigit(str), new DateTimeException("Invalid ISO String"));
+    enforce!DateTimeException(!str.empty && all!isDigit(str),
+                              format("Invalid format for fracSecsFromISOString: %s", isoString));
 
     dchar[7] fullISOString = void;
     foreach (i, ref dchar c; fullISOString)

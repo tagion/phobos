@@ -902,13 +902,14 @@ if (is(FloatingPointTypeOf!T) && !is(T == enum) && !hasToString!(T, Char))
 {
     import std.math.exponential : log2;
 
-    // log2 is broken for x87-reals on some computers in CTFE
-    // the following test excludes these computers from the test
-    // (https://issues.dlang.org/show_bug.cgi?id=21757)
-    enum test = cast(int) log2(3.05e2312L);
-    static if (real.mant_dig == 64 && test == 7681) // 80 bit reals
+    static if (real.mant_dig == 64) // 80 bit reals
     {
-        static assert(format!"%e"(real.max) == "1.189731e+4932");
+        // log2 is broken for x87-reals on some computers in CTFE
+        // the following test excludes these computers from the test
+        // (https://issues.dlang.org/show_bug.cgi?id=21757)
+        enum test = cast(int) log2(3.05e2312L);
+        static if (test == 7681)
+            static assert(format!"%e"(real.max) == "1.189731e+4932");
     }
 }
 
@@ -1411,6 +1412,12 @@ if (isInputRange!T)
     // if the format spec is valid
     enum formatTestMode = is(Writer == NoOpSink);
 
+    static if (!formatTestMode && isInfinite!T)
+    {
+        static assert(!isInfinite!T, "Cannot format an infinite range. " ~
+            "Convert it to a finite range first using `std.range.take` or `std.range.takeExactly`.");
+    }
+
     // Formatting character ranges like string
     if (f.spec == 's')
     {
@@ -1581,18 +1588,16 @@ if (isInputRange!T)
         throw new FormatException(text("Incorrect format specifier for range: %", f.spec));
 }
 
-// https://issues.dlang.org/show_bug.cgi?id=20218
 @safe pure unittest
 {
-    void notCalled()
-    {
-        import std.range : repeat;
+    import std.range : repeat;
+    import std.format : format;
 
-        auto value = 1.repeat;
+    auto value = 1.repeat;
 
-        // test that range is not evaluated to completion at compiletime
-        format!"%s"(value);
-    }
+    // This should fail to compile — so we assert that it *doesn't* compile
+    static assert(!__traits(compiles, format!"%s"(value)),
+        "Test failed: formatting an infinite range should not compile.");
 }
 
 // character formatting with ecaping
@@ -1839,24 +1844,26 @@ template hasToString(T, Char)
     else static if (is(typeof(
         (T val) {
             const FormatSpec!Char f;
-            static struct S {void put(scope Char s){}}
+            static struct S
+            {
+                @disable this(this);
+                void put(scope Char s){}
+            }
             S s;
             val.toString(s, f);
-            static assert(!__traits(compiles, val.toString(s, FormatSpec!Char())),
-                          "force toString to take parameters by ref");
-            static assert(!__traits(compiles, val.toString(S(), f)),
-                          "force toString to take parameters by ref");
         })))
     {
         enum hasToString = HasToStringResult.customPutWriterFormatSpec;
     }
     else static if (is(typeof(
         (T val) {
-            static struct S {void put(scope Char s){}}
+            static struct S
+            {
+                @disable this(this);
+                void put(scope Char s){}
+            }
             S s;
             val.toString(s);
-            static assert(!__traits(compiles, val.toString(S())),
-                          "force toString to take parameters by ref");
         })))
     {
         enum hasToString = HasToStringResult.customPutWriter;
@@ -1935,7 +1942,8 @@ template hasToString(T, Char)
     static struct G
     {
         string toString() {return "";}
-        void toString(Writer)(ref Writer w) if (isOutputRange!(Writer, string)) {}
+        void toString(Writer)(ref Writer w)
+        if (isOutputRange!(Writer, string)) {}
     }
     static struct H
     {
@@ -1946,7 +1954,8 @@ template hasToString(T, Char)
     }
     static struct I
     {
-        void toString(Writer)(ref Writer w) if (isOutputRange!(Writer, string)) {}
+        void toString(Writer)(ref Writer w)
+        if (isOutputRange!(Writer, string)) {}
         void toString(Writer)(ref Writer w, scope const ref FormatSpec!char fmt)
         if (isOutputRange!(Writer, string))
         {}
@@ -1994,9 +2003,10 @@ template hasToString(T, Char)
         static assert(hasToString!(G, char) == customPutWriter);
         static assert(hasToString!(H, char) == customPutWriterFormatSpec);
         static assert(hasToString!(I, char) == customPutWriterFormatSpec);
-        static assert(hasToString!(J, char) == hasSomeToString);
+        static assert(hasToString!(J, char) == hasSomeToString
+            || hasToString!(J, char) == constCharSinkFormatSpec); // depends on -preview=rvaluerefparam
         static assert(hasToString!(K, char) == constCharSinkFormatSpec);
-        static assert(hasToString!(L, char) == none);
+        static assert(hasToString!(L, char) == customPutWriterFormatSpec);
         static if (hasPreviewIn)
         {
             static assert(hasToString!(M, char) == inCharSinkFormatSpec);
@@ -2042,7 +2052,8 @@ template hasToString(T, Char)
     static struct G
     {
         string toString() const {return "";}
-        void toString(Writer)(ref Writer w) const if (isOutputRange!(Writer, string)) {}
+        void toString(Writer)(ref Writer w) const
+        if (isOutputRange!(Writer, string)) {}
     }
     static struct H
     {
@@ -2053,7 +2064,8 @@ template hasToString(T, Char)
     }
     static struct I
     {
-        void toString(Writer)(ref Writer w) const if (isOutputRange!(Writer, string)) {}
+        void toString(Writer)(ref Writer w) const
+        if (isOutputRange!(Writer, string)) {}
         void toString(Writer)(ref Writer w, scope const ref FormatSpec!char fmt) const
         if (isOutputRange!(Writer, string))
         {}
@@ -2101,9 +2113,10 @@ template hasToString(T, Char)
         static assert(hasToString!(G, char) == customPutWriter);
         static assert(hasToString!(H, char) == customPutWriterFormatSpec);
         static assert(hasToString!(I, char) == customPutWriterFormatSpec);
-        static assert(hasToString!(J, char) == hasSomeToString);
+        static assert(hasToString!(J, char) == hasSomeToString
+            || hasToString!(J, char) == constCharSinkFormatSpec); // depends on -preview=rvaluerefparam
         static assert(hasToString!(K, char) == constCharSinkFormatSpec);
-        static assert(hasToString!(L, char) == none);
+        static assert(hasToString!(L, char) == HasToStringResult.customPutWriterFormatSpec);
         static if (hasPreviewIn)
         {
             static assert(hasToString!(M, char) == inCharSinkFormatSpec);
@@ -2121,9 +2134,10 @@ template hasToString(T, Char)
         static assert(hasToString!(inout(G), char) == customPutWriter);
         static assert(hasToString!(inout(H), char) == customPutWriterFormatSpec);
         static assert(hasToString!(inout(I), char) == customPutWriterFormatSpec);
-        static assert(hasToString!(inout(J), char) == hasSomeToString);
+        static assert(hasToString!(inout(J), char) == hasSomeToString
+            || hasToString!(inout(J), char) == constCharSinkFormatSpec); // depends on -preview=rvaluerefparam
         static assert(hasToString!(inout(K), char) == constCharSinkFormatSpec);
-        static assert(hasToString!(inout(L), char) == none);
+        static assert(hasToString!(inout(L), char) == customPutWriterFormatSpec);
         static if (hasPreviewIn)
         {
             static assert(hasToString!(inout(M), char) == inCharSinkFormatSpec);
@@ -2532,9 +2546,23 @@ if ((is(T == struct) || is(T == union)) && (hasToString!(T, Char) || !is(Builtin
             {
                 // ignore hidden context pointer
             }
-            else static if (0 < i && T.tupleof[i-1].offsetof == T.tupleof[i].offsetof)
+            /* https://github.com/dlang/phobos/issues/10840
+             * handle possible bitfields by doing overlap comparisons
+             * using bit counts rather than byte counts.
+             * However, the overlap
+             * check in general does not take into account staggered unions.
+             * This can be fixed using the correct algorithm implemented in
+             * the compiler function dmd.declaration.isOverlappedWith().
+             * For the moment we will not change to that because the `#(overlap ...)` output
+             * needs to be re-thought, as it was never correct.
+             */
+            else static if (0 < i &&
+                            T.tupleof[i-1].offsetof * 8 + __traits(getBitfieldOffset,T.tupleof[i-1]) ==
+                            T.tupleof[i  ].offsetof * 8 + __traits(getBitfieldOffset,T.tupleof[i  ]))
             {
-                static if (i == T.tupleof.length - 1 || T.tupleof[i].offsetof != T.tupleof[i+1].offsetof)
+                static if (i == T.tupleof.length - 1 ||
+                            T.tupleof[i  ].offsetof * 8 + __traits(getBitfieldOffset,T.tupleof[i  ]) !=
+                            T.tupleof[i+1].offsetof * 8 + __traits(getBitfieldOffset,T.tupleof[i+1]))
                 {
                     enum el = separator ~ __traits(identifier, T.tupleof[i]) ~ "}";
                     put(w, el);
@@ -2545,7 +2573,9 @@ if ((is(T == struct) || is(T == union)) && (hasToString!(T, Char) || !is(Builtin
                     put(w, el);
                 }
             }
-            else static if (i+1 < T.tupleof.length && T.tupleof[i].offsetof == T.tupleof[i+1].offsetof)
+            else static if (i+1 < T.tupleof.length &&
+                            T.tupleof[i  ].offsetof * 8 + __traits(getBitfieldOffset,T.tupleof[i  ]) ==
+                            T.tupleof[i+1].offsetof * 8 + __traits(getBitfieldOffset,T.tupleof[i+1]))
             {
                 enum el = (i > 0 ? separator : "") ~ "#{overlap " ~ __traits(identifier, T.tupleof[i]);
                 put(w, el);
@@ -2603,7 +2633,8 @@ if ((is(T == struct) || is(T == union)) && (hasToString!(T, Char) || !is(Builtin
     {
         int n = 0;
         alias n this;
-        T opCast(T) () if (is(T == Frop))
+        T opCast(T) ()
+        if (is(T == Frop))
         {
             return Frop();
         }
@@ -3080,13 +3111,10 @@ if (isDelegate!T)
     import std.format : formatValue;
 
     void func() @system { __gshared int x; ++x; throw new Exception("msg"); }
-    version (linux)
-    {
-        FormatSpec!char f;
-        auto w = appender!string();
-        formatValue(w, &func, f);
-        assert(w.data.length >= 15 && w.data[0 .. 15] == "void delegate()");
-    }
+    FormatSpec!char f;
+    auto w = appender!string();
+    formatValue(w, &func, f);
+    assert(w.data.length >= 15 && w.data[0 .. 15] == "void delegate()");
 }
 
 // string elements are formatted like UTF-8 string literals.

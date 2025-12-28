@@ -313,7 +313,6 @@ if (isBidirectionalRange!R && isSomeChar!(ElementType!R) ||
 @safe unittest
 {
     import std.array;
-    import std.utf : byDchar;
 
     assert(rtrimDirSeparators("//abc//").array == "//abc");
     assert(rtrimDirSeparators("//abc//"d).array == "//abc"d);
@@ -331,7 +330,6 @@ if (isBidirectionalRange!R && isSomeChar!(ElementType!R) ||
 @safe unittest
 {
     import std.array;
-    import std.utf : byDchar;
 
     assert(trimDirSeparators("//abc//").array == "abc");
     assert(trimDirSeparators("//abc//"d).array == "abc"d);
@@ -1003,7 +1001,7 @@ private auto _stripDrive(R)(R path)
     Returns:
         index of extension separator (the dot), or -1 if not found
 */
-private ptrdiff_t extSeparatorPos(R)(const R path)
+private ptrdiff_t extSeparatorPos(R)(R path)
 if (isRandomAccessRange!R && hasLength!R && isSomeChar!(ElementType!R) ||
     isNarrowString!R)
 {
@@ -1293,6 +1291,11 @@ if (isSomeChar!C1 && isSomeChar!C2)
 
 @safe unittest
 {
+    assert(chainPath("directory", "file").withExtension(".ext").array == buildPath("directory", "file.ext"));
+}
+
+@safe unittest
+{
     import std.algorithm.comparison : equal;
 
     assert(testAliasedString!withExtension("file", "ext"));
@@ -1455,9 +1458,8 @@ private auto _withDefaultExtension(R, C)(R path, C[] ext)
         of segments to assemble the path from.
     Returns: The assembled path.
 */
-immutable(ElementEncodingType!(ElementType!Range))[]
-    buildPath(Range)(scope Range segments)
-    if (isInputRange!Range && !isInfinite!Range && isSomeString!(ElementType!Range))
+immutable(ElementEncodingType!(ElementType!Range))[] buildPath(Range)(scope Range segments)
+if (isInputRange!Range && !isInfinite!Range && isSomeString!(ElementType!Range))
 {
     if (segments.empty) return null;
 
@@ -2754,6 +2756,9 @@ else version (Posix)
     The function allocates memory if and only if it gets to the third stage
     of this algorithm.
 
+    Note that `absolutePath` will not normalize `..` segments.
+    Use `buildNormalizedPath(absolutePath(path))` if that is desired.
+
     Params:
         path = the relative path to transform
         base = the base directory of the relative path
@@ -2844,6 +2849,9 @@ string absolutePath(return scope const string path, lazy string base = getcwd())
         $(LI Otherwise, append `path` to the current working directory,
         which allocates memory.)
     )
+
+    Note that `asAbsolutePath` will not normalize `..` segments.
+    Use `asNormalizedPath(asAbsolutePath(path))` if that is desired.
 
     Params:
         path = the relative path to transform
@@ -3420,8 +3428,11 @@ do
     }
     else
     {
+        import core.memory : pureMalloc, pureFree;
         C[] pattmp;
-        foreach (ref pi; 0 .. pattern.length)
+        scope(exit) if (pattmp !is null) (() @trusted => pureFree(pattmp.ptr))();
+
+        for (size_t pi = 0; pi < pattern.length; pi++)
         {
             const pc = pattern[pi];
             switch (pc)
@@ -3506,9 +3517,12 @@ do
                              *   pattern[pi0 .. pi-1] ~ pattern[piRemain..$]
                              */
                             if (pattmp is null)
+                            {
                                 // Allocate this only once per function invocation.
-                                // Should do it with malloc/free, but that would make it impure.
-                                pattmp = new C[pattern.length];
+                                pattmp = (() @trusted =>
+                                    (cast(C*) pureMalloc(C.sizeof * pattern.length))[0 .. pattern.length])
+                                ();
+                            }
 
                             const len1 = pi - 1 - pi0;
                             pattmp[0 .. len1] = pattern[pi0 .. pi - 1];
@@ -3542,7 +3556,7 @@ do
 }
 
 ///
-@safe unittest
+@safe @nogc unittest
 {
     assert(globMatch("foo.bar", "*"));
     assert(globMatch("foo.bar", "*.*"));

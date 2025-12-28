@@ -1182,14 +1182,7 @@ if (isCallable!func)
     static assert(pstc.length == 4); // number of parameters
     static assert(pstc[0] == STC.ref_);
     static assert(pstc[1] == STC.out_);
-    version (none)
-    {
-        // TODO: When the DMD PR (dlang/dmd#11474) gets merged,
-        // remove the versioning and the second test
-        static assert(pstc[2] == STC.in_);
-        // This is the current behavior, before `in` is fixed to not be an alias
-        static assert(pstc[2] == STC.scope_);
-    }
+    static assert(pstc[2] == STC.in_);
     static assert(pstc[3] == STC.none);
 }
 
@@ -2181,7 +2174,7 @@ if (isCallable!func)
 
 
 /**
-Get the function type from a callable object `func`.
+Get the function type from a callable object `func`, or from a function pointer/delegate type.
 
 Using builtin `typeof` on a property function yields the types of the
 property value, not of the property function itself.  Still,
@@ -2229,10 +2222,17 @@ if (isCallable!func)
 {
     class C
     {
-        int value() @property { return 0; }
+        int value() @property => 0;
+        static string opCall() => "hi";
     }
     static assert(is( typeof(C.value) == int ));
     static assert(is( FunctionTypeOf!(C.value) == function ));
+    static assert(is( FunctionTypeOf!C == typeof(C.opCall) ));
+
+    int function() fp;
+    alias IntFn = int();
+    static assert(is( typeof(fp) == IntFn* ));
+    static assert(is( FunctionTypeOf!fp == IntFn ));
 }
 
 @system unittest
@@ -4721,10 +4721,7 @@ It will return `void` if a symbol without a template is given.
 alias TemplateOf(alias T : Base!Args, alias Base, Args...) = Base;
 
 /// ditto
-alias TemplateOf(T : Base!Args, alias Base, Args...) = Base;
-
-/// ditto
-alias TemplateOf(T) = void;
+alias TemplateOf(alias T) = void;
 
 ///
 @safe unittest
@@ -4761,6 +4758,10 @@ alias TemplateOf(T) = void;
 {
     static assert(is(TemplateOf!(int[]) == void));
     static assert(is(TemplateOf!bool == void));
+
+    // https://github.com/dlang/phobos/issues/10527
+    static void foo() {}
+    static assert(is(TemplateOf!foo == void));
 }
 
 /**
@@ -7244,16 +7245,21 @@ alias PointerTarget(T : T*) = T;
 /**
  * Detect whether type `T` is an aggregate type.
  */
-enum bool isAggregateType(T) = is(T == struct) || is(T == union) ||
-                               is(T == class) || is(T == interface);
+template isAggregateType(T)
+{
+    static if (is(T == enum))
+        enum isAggregateType = isAggregateType!(OriginalType!T);
+    else
+        enum isAggregateType = is(T == struct) || is(T == class) || is(T == interface) || is(T == union);
+}
 
 ///
 @safe unittest
 {
-    class C;
-    union U;
-    struct S;
-    interface I;
+    class C {}
+    union U {}
+    struct S {}
+    interface I {}
 
     static assert( isAggregateType!C);
     static assert( isAggregateType!U);
@@ -7264,6 +7270,16 @@ enum bool isAggregateType(T) = is(T == struct) || is(T == union) ||
     static assert(!isAggregateType!(int[]));
     static assert(!isAggregateType!(C[string]));
     static assert(!isAggregateType!(void delegate(int)));
+
+    enum ES : S { a = S.init }
+    enum EC : C { a = C.init }
+    enum EI : I { a = I.init }
+    enum EU : U { a = U.init }
+
+    static assert( isAggregateType!ES);
+    static assert( isAggregateType!EC);
+    static assert( isAggregateType!EI);
+    static assert( isAggregateType!EU);
 }
 
 /**
@@ -7360,10 +7376,12 @@ template isInstanceOf(alias S, alias T)
     static struct A(T = void)
     {
         // doesn't work as expected, only accepts A when T = void
-        void func(B)(B b) if (isInstanceOf!(A, B)) {}
+        void func(B)(B b)
+        if (isInstanceOf!(A, B)) {}
 
         // correct behavior
-        void method(B)(B b) if (isInstanceOf!(TemplateOf!(A), B)) {}
+        void method(B)(B b)
+        if (isInstanceOf!(TemplateOf!(A), B)) {}
     }
 
     A!(void) a1;
@@ -7586,6 +7604,8 @@ enum bool isSomeFunction(alias T) =
 /**
 Detect whether `T` is a callable object, which can be called with the
 function call operator `$(LPAREN)...$(RPAREN)`.
+
+$(NOTE Implicit Function Template Instantiation is *not* attempted - see below.)
  */
 template isCallable(alias callable)
 {
@@ -7609,7 +7629,7 @@ template isCallable(alias callable)
     }
 }
 
-/// Functions, lambdas, and aggregate types with (static) opCall.
+/// Functions, function pointers, delegates, lambdas.
 @safe unittest
 {
     void f() { }
@@ -7618,6 +7638,17 @@ template isCallable(alias callable)
     static assert( isCallable!f);
     static assert( isCallable!g);
 
+    auto fp = &f;
+    static assert( isCallable!fp);
+    static assert( isCallable!((int x) {}));
+
+    int x;
+    static assert(!isCallable!x);
+}
+
+/// Aggregate types with (static) opCall.
+@safe unittest
+{
     class C { int opCall(int) { return 0; } }
     auto c = new C;
     struct S { static int opCall(int) { return 0; } }
@@ -7632,7 +7663,7 @@ template isCallable(alias callable)
     static assert(!isCallable!I);
 }
 
-/// Templates
+/// Template functions are only detected if they are instantiable with `!()`.
 @safe unittest
 {
     void f()() { }
@@ -7644,9 +7675,11 @@ template isCallable(alias callable)
     static assert( isCallable!g);
     static assert( isCallable!S1);
     static assert( isCallable!S2);
+
+    static assert(!isCallable!((x) {}));
 }
 
-/// Overloaded functions and function templates.
+/// Overloaded functions and function templates instantiable with `!()`.
 @safe unittest
 {
     static struct Wrapper
@@ -9110,9 +9143,9 @@ enum isType(alias X) = is(X);
 }
 
 /**
- * Detect whether symbol or type `X` is a function. This is different that finding
- * if a symbol is callable or satisfying `is(X == function)`, it finds
- * specifically if the symbol represents a normal function declaration, i.e.
+ * Detect whether symbol or type `X` is a function.
+ * This is different from finding if a symbol is callable or satisfying `is(X == return)`.
+ * It finds specifically if the symbol represents a normal function (or method) declaration, i.e.
  * not a delegate or a function pointer.
  *
  * Returns:
@@ -9130,10 +9163,10 @@ template isFunction(alias X)
         // x is a (nested) function symbol.
         enum isFunction = true;
     }
-    else static if (is(X T))
+    else static if (is(X))
     {
-        // x is a type.  Take the type of it and examine.
-        enum isFunction = is(T == function);
+        // x is a type
+        enum isFunction = is(X == function);
     }
     else
         enum isFunction = false;
@@ -9144,6 +9177,14 @@ template isFunction(alias X)
 {
     static void func(){}
     static assert(isFunction!func);
+    static assert(isFunction!(typeof(func)));
+
+    auto fp = &func; // function pointer
+    static assert(!isFunction!fp);
+
+    int i;
+    int f2() => i; // nested function
+    static assert(isFunction!f2);
 
     struct S
     {
@@ -9229,12 +9270,16 @@ enum isCopyable(S) = __traits(isCopyable, S);
  * is the same as `T`. For pointer and slice types, it is `T` with the
  * outer-most layer of qualifiers dropped.
  */
-package(std) template DeducedParameterType(T)
+package(std) alias DeducedParameterType(T) = DeducedParameterTypeImpl!T;
+/// ditto
+package(std) alias DeducedParameterType(alias T) = DeducedParameterTypeImpl!T;
+
+private template DeducedParameterTypeImpl(T)
 {
     static if (is(T == U*, U) || is(T == U[], U))
-        alias DeducedParameterType = Unqual!T;
+        alias DeducedParameterTypeImpl = Unqual!T;
     else
-        alias DeducedParameterType = T;
+        alias DeducedParameterTypeImpl = T;
 }
 
 @safe unittest
@@ -9254,6 +9299,7 @@ package(std) template DeducedParameterType(T)
     }
 
     static assert(is(DeducedParameterType!NoCopy == NoCopy));
+    static assert(is(DeducedParameterType!(inout(NoCopy)) == inout(NoCopy)));
 }
 
 @safe unittest

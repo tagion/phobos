@@ -50,7 +50,6 @@ module std.datetime.stopwatch;
 
 public import core.time;
 import std.typecons : Flag;
-version (LDC) import ldc.attributes;
 
 /++
     Used by StopWatch to indicate whether it should start immediately upon
@@ -167,7 +166,6 @@ public:
         Thread.sleep(usecs(1));
 
         sw.reset();
-        assert(sw.peek() < msecs(1));
         assert(sw._timeStarted > before);
         assert(sw._timeStarted <= MonoTime.currTime);
     }
@@ -446,7 +444,6 @@ Duration[fun.length] benchmark(fun...)(uint n)
     import std.conv : to;
 
     int a;
-    @optStrategy("none") // LDC
     void f0() nothrow {}
     void f1() nothrow @trusted {
         // do not allow any optimizer to optimize this function away
