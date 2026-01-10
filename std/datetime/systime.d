@@ -2687,9 +2687,10 @@ public:
     {
         timespec toTimeSpec() @safe const pure nothrow scope
         {
-            import core.sys.wasi.missing;
-            mixin WASIError;
-            assert(0, wasi_error);
+            immutable tv_sec = toUnixTime!(typeof(timespec.tv_sec))();
+            immutable fracHNSecs = removeUnitsFromHNSecs!"seconds"(_stdTime - 621_355_968_000_000_000L);
+            immutable tv_nsec = cast(typeof(timespec.tv_nsec))convert!("hnsecs", "nsecs")(fracHNSecs);
+            return timespec(tv_sec, tv_nsec);
         }
     }
 
