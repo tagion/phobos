@@ -128,8 +128,12 @@ else version (Posix)
 {
     private alias FSChar = char;
 }
+else version (WASI)
+{
+    private alias FSChar = char;
+}
 else
-    static assert(0);
+     static assert(0);
 
 // Purposefully not documented. Use at your own risk
 @property string deleteme() @safe
