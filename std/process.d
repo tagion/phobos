@@ -445,6 +445,7 @@ static:
 private:
     version (Windows) alias OSChar = WCHAR;
     else version (Posix) alias OSChar = char;
+    else version (WASI) alias OSChar = char;
 
     // Retrieves the environment variable. Calls `sink` with a
     // temporary buffer of OS characters, or `null` if the variable
