@@ -1703,16 +1703,29 @@ else
         // and enabled unwanted optimizations on non-DMD compilers.
         ulong result;
         enum ulong m = 0xc6a4_a793_5bd1_e995UL; // MurmurHash2_64A constant.
+        version (WASI) {
+            import core.stdc.stdio;
+            printf("This funcion %s should not be used\n", &__FUNCTION__[0]);
+        }
         void updateResult(ulong x)
         {
             x *= m;
             x = (x ^ (x >>> 47)) * m;
             result = (result ^ x) * m;
         }
-        import core.thread : getpid, Thread;
+        version (WASI) {
+            ulong getpid() {
+                return 0;
+            }
+            enum thread_support = false;
+        }
+        else {
+            import core.thread : getpid, Thread;
+            enum thread_support = true;
+        }
         import core.time : MonoTime;
 
-        updateResult(cast(ulong) cast(void*) Thread.getThis());
+        static if (thread_support) updateResult(cast(ulong) cast(void*) Thread.getThis());
         updateResult(cast(ulong) getpid());
         updateResult(cast(ulong) MonoTime.currTime.ticks);
         result = (result ^ (result >>> 47)) * m;

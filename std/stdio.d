@@ -1214,8 +1214,17 @@ Throws: `Exception` if the file is not opened.
             import core.sys.posix.stdio : fseeko, off_t;
             alias fseekFun = fseeko;
         }
-        errnoEnforce(fseekFun(_p.handle, to!off_t(offset), origin) == 0,
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
+        else
+        {
+            errnoEnforce(fseekFun(_p.handle, to!off_t(offset), origin) == 0,
                 "Could not seek in file `"~_name~"'");
+        }
     }
 
     @system unittest

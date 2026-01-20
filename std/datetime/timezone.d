@@ -28,6 +28,8 @@ $(TR $(TD Utilities) $(TD
 +/
 module std.datetime.timezone;
 
+version(WASI) {} else version = NOT_WASI;
+
 import core.time : abs, convert, dur, Duration, hours, minutes;
 import std.datetime.systime : Clock, stdTimeToUnixTime, SysTime;
 import std.range.primitives : back, empty, front, isOutputRange, popFront;
@@ -625,6 +627,12 @@ public:
             catch (Exception e)
                 assert(0, "GetTimeZoneInformation() returned invalid UTF-16.");
         }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
+        }
     }
 
     @safe unittest
@@ -709,6 +717,12 @@ public:
             }
             catch (Exception e)
                 assert(0, "GetTimeZoneInformation() returned invalid UTF-16.");
+        }
+        else version (WASI)
+        {
+            import core.sys.wasi.missing;
+            mixin WASIError;
+            assert(0, wasi_error);
         }
     }
 
@@ -1915,6 +1929,7 @@ private:
         $(HTTP en.wikipedia.org/wiki/List_of_tz_database_time_zones, List of Time
           Zones)
   +/
+version (NOT_WASI)
 final class PosixTimeZone : TimeZone
 {
     import std.algorithm.searching : countUntil, canFind, startsWith;

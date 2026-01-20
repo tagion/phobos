@@ -4604,6 +4604,12 @@ else version (Windows)
 {
     return execvpe(pathname.tempCString(), toAStringz(argv), toAStringz(envp));
 }
+else version (WASI)
+{
+    import core.sys.wasi.missing;
+    mixin WASIError;
+    assert(0, wasi_error);
+}
 else
 {
     static assert(0);

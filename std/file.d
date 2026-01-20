@@ -82,6 +82,8 @@ Source:    $(PHOBOSSRC std/file.d)
  */
 module std.file;
 
+version(WASI) {} else version = NOT_WASI;
+
 import core.stdc.errno, core.stdc.stdlib, core.stdc.string;
 import core.time : abs, dur, hnsecs, seconds;
 
@@ -4015,7 +4017,7 @@ else version (Windows)
         uint  _attributes; /// The file attributes from WIN32_FIND_DATAW.
     }
 }
-else // version(Posix) || version(WASI)
+else version (Posix)
 {
     struct DirEntry
     {
@@ -4554,6 +4556,7 @@ version (Windows) @safe unittest
         $(LREF FileException) if there is an error (including if the given
         file is not a directory).
  +/
+version (NOT_WASI)
 void rmdirRecurse(scope const(char)[] pathname) @safe
 {
     //No references to pathname will be kept after rmdirRecurse,
@@ -4562,6 +4565,7 @@ void rmdirRecurse(scope const(char)[] pathname) @safe
 }
 
 /// ditto
+version (NOT_WASI)
 void rmdirRecurse(ref scope DirEntry de) @safe
 {
     if (!de.isDir)
@@ -4598,6 +4602,7 @@ void rmdirRecurse(ref scope DirEntry de) @safe
 //"rmdirRecurse(in char[] pathname)" implementation. That is needlessly
 //expensive.
 //A DirEntry is a bit big (72B), so keeping the "by ref" signature is desirable.
+version (NOT_WASI)
 void rmdirRecurse(scope DirEntry de) @safe
 {
     rmdirRecurse(de);
@@ -4728,6 +4733,7 @@ enum SpanMode
         ["animals", "plants"]));
 }
 
+version(NOT_WASI)
 private struct DirIteratorImpl
 {
   @safe:
@@ -4971,6 +4977,7 @@ private struct DirIteratorImpl
 // Must be a template, because the destructor is unsafe or safe depending on
 // whether `-preview=dip1000` is in use. Otherwise, linking errors would
 // result.
+version (NOT_WASI)
 struct _DirIterator(bool useDIP1000)
 {
     static assert(useDIP1000 == dip1000Enabled,
@@ -4991,6 +4998,7 @@ public:
 
 // This has the client code to automatically use and link to the correct
 // template instance
+version (NOT_WASI)
 alias DirIterator = _DirIterator!dip1000Enabled;
 
 /++
