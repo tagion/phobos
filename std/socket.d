@@ -32,12 +32,6 @@ import std.exception;
 
 import std.internal.cstring;
 
-version (WASI)
-    enum socket_supported = false;
-else
-    enum socket_supported = true;
-
-static if (socket_supported):
 version (iOS)
     version = iOSDerived;
 else version (TVOS)
@@ -2286,49 +2280,6 @@ private:
         }
 
         int maxfd;
-    }
-    else version (WASI)
-    {
-        alias fd_set_type = typeof(fd_set.init.tupleof[0][0]);
-        static fd_set_type mask(uint n) pure nothrow @nogc
-        {
-            import core.sys.wasm.missing;
-            mixin WASIError;
-            assert(0, wasi_error);
-        }
-
-        // Array size to fit that many sockets
-
-        static size_t lengthFor(size_t size) pure nothrow @nogc
-        {
-            import core.sys.wasm.missing;
-            mixin WASIError;
-            assert(0, wasi_error);
-        }
-
-        void resize(size_t size) pure nothrow
-        {
-            import core.sys.wasm.missing;
-            mixin WASIError;
-            assert(0, wasi_error);
-        }
-
-        // Make sure we can fit that many sockets
-
-        void setMinCapacity(size_t size) pure nothrow
-        {
-            import core.sys.wasm.missing;
-            mixin WASIError;
-            assert(0, wasi_error);
-        }
-
-        size_t capacity() @property const pure nothrow @nogc
-        {
-            import core.sys.wasm.missing;
-            mixin WASIError;
-            assert(0, wasi_error);
-        }
-
     }
     else
         static assert(false, "Unknown platform");

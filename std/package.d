@@ -67,7 +67,7 @@ public import
  std.range,
  std.regex,
  std.signals,
- std.socket,
+ //std.socket,
  std.stdint,
  std.stdio,
  std.string,
