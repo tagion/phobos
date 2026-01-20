@@ -190,14 +190,6 @@ version (LDC_AddressSanitizer)
         auto result = _aligned_malloc(bytes, a);
         return result ? result[0 .. bytes] : null;
     }
-    else version (WASI)
-    @trusted @nogc nothrow
-    void[] alignedAllocate(size_t bytes, uint a) shared
-    {
-        import core.sys.wasi.missing;
-        mixin WASIError;
-        assert(0, wasi_error);
-    }
     else static assert(0);
 
     /**
@@ -219,14 +211,6 @@ version (LDC_AddressSanitizer)
     {
         _aligned_free(b.ptr);
         return true;
-    }
-    else version (WASI)
-    @system @nogc nothrow
-    bool deallocate(void[] b) shared
-    {
-        import core.sys.wasi.missing;
-        mixin WASIError;
-        assert(0, wasi_error);
     }
     else static assert(0);
 
@@ -288,14 +272,6 @@ version (LDC_AddressSanitizer)
         return true;
     }
 
-    version (WASI)
-    @system @nogc nothrow
-    bool alignedReallocate(ref void[] b, size_t s, uint a) shared
-    {
-        import core.sys.wasi.missing;
-        mixin WASIError;
-        assert(0, wasi_error);
-    }
     /**
     Returns the global instance of this allocator type. The C heap allocator is
     thread-safe, therefore all of its methods and `instance` itself are
