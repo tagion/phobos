@@ -2704,6 +2704,10 @@ else version (Posix)
 {
     alias isAbsolute = isRooted;
 }
+else version (WASI)
+{
+    alias isAbsolute = isRooted;
+}
 
 
 @safe unittest
